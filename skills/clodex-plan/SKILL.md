@@ -209,8 +209,17 @@ acceptance is judged by looking at the result rather than by running it:
   routes, email templates)
 - brand assets (logo, favicon, illustration, OG image)
 
+**Test C — operator-visible behavior (added 2026-08-28).** The plan introduces or
+alters behavior an operator — a client, or a user of the running system — will
+experience: a new workflow, a changed output artifact (email, digest, document,
+deck), or automation acting on state the operator controls. This test exists
+because a five-round-reviewed plan once hardened the wrong architecture: every
+round examined the diff and nobody had approved the shape. Taste is not the
+trigger here; *someone else will live with this behavior* is.
+
 **Answer no** when the work is data, pipeline, refactor, infrastructure, build or
-CI, tests, schema, or an internal API.
+CI, tests, schema, an internal API, or a repair that restores already-approved
+behavior.
 
 **The tie-break, and it overrides Test B:** if the plan makes no new visual, copy,
 or positioning decision — it reuses an existing component, existing copy,
@@ -226,7 +235,7 @@ reader can check it against the ask and the owned paths.
 | Gate | The plan must contain | Before the review loop |
 |---|---|---|
 | **no** | one line: `Direction gate: no — <why, or the existing pattern it follows>` | nothing extra |
-| **yes** | a `## Direction` section: the **premise** (one paragraph: what this will be and why that is the right call), **comps** (2–3 references, or 2–3 named alternatives you rejected and why), and **acceptance criteria for taste** (what "good" means here, in checkable words) | run §7, the direction checkpoint |
+| **yes** | a `## Direction` section — the **shape card**: the **premise** (one paragraph: what this will be and why that is the right call), **operator and action** (who will do or receive what), **expected outcome** on each user-visible surface, **production proof** (what will prove it working live, and who watches), **comps** (2–3 references, or 2–3 named alternatives you rejected and why), and — when taste applies (Tests A/B) — **acceptance criteria for taste** (what "good" means here, in checkable words) | run §7, the direction checkpoint |
 
 ---
 
@@ -270,7 +279,9 @@ One line each, falsifiable, resolved by reading — not by asking.
 Direction gate: yes|no — <trigger, or the existing pattern this follows>
 
 ## Direction            <!-- only when the gate is yes; otherwise omit -->
-Premise · Comps · Acceptance criteria for taste.
+The shape card: Premise · Operator and action · Expected outcome per
+user-visible surface · Production proof (and who watches it) · Comps ·
+Acceptance criteria for taste (when taste applies).
 
 ## Scope
 Done when: <one sentence a stranger could check>
@@ -320,8 +331,12 @@ NAMES what it needs, it never writes the file.
 | tests | `<the profile's test command>` — covering <what> |
 | real-data | <the production-shaped input it runs against> |
 
-Classes come from: tests · real-data · live-check · visual. Any default class
-this plan drops gets a line here saying why.
+Classes come from: tests · real-data · live-check · visual · client-artifact.
+Any default class this plan drops gets a line here saying why.
+`client-artifact` (added 2026-08-28) is required whenever the change touches
+something a client receives or opens — an email, digest, generated document,
+deck, or shared tree: the evidence is reading the artifact from the client's
+side, and it cannot be booked as debt while the surface exists.
 
 ## Risks
 What could go wrong, and what the plan does about it.
@@ -438,12 +453,18 @@ working.
 Present it **after** the plan is recorded (the approval must bind to a hash) and
 **before** the review loop (so a rejected premise does not burn review rounds).
 
-One message: the premise, the comps, the acceptance criteria, and the explicit
-ask — *approve this direction, or tell me what to change.* Do not start the
-review loop until they answer. A standing mandate granting
-`direction-approval` (§6) answers this gate itself: present the same content
-as a record rather than a question, and append the direction approval with
-`by: "mandate"`.
+One message: the shape card (§4's yes row — premise, operator and action,
+expected outcome per surface, production proof, comps, taste criteria when they
+apply) and the explicit ask — *approve this shape, or tell me what to change.*
+Ten minutes of the user's attention here is worth more than the ninth review
+round on a plan whose basic shape is wrong. Do not start the review loop until
+they answer. A standing mandate granting `direction-approval` (§6) answers this
+gate **only when the standing brief itself states the shape** — operator,
+action, expected outcome, production proof, in the brief's own words. Then
+present the same content as a record rather than a question and append the
+direction approval with `by: "mandate"`. A mandate whose brief does not state
+the shape does not cover this gate: the modal opens. A pre-granted approval
+cannot substitute for a shape nobody wrote down.
 
 **Approved** → append:
 
@@ -606,18 +627,23 @@ flag the accepted item again; it is decided, and reporting it will not change
 the plan.
 ```
 
-**When the reviewer keeps finding new things.** The exit condition is the
-**severity trend**, not a round count: the loop is done when a round produces
-zero blocker/high findings after dispositions. Falling finding counts are not
-that — a pilot run's counts fell 8, 6, 5, 4, 3 while round 4 caught a defect
-that would have shipped silent data corruption, so "three rounds is enough" was
-wrong the one time it was tested. What a round-3 check *is* for: when
-blockers/highs are still arriving, stop spending silently and take it to the
-user in one message — what keeps coming back, whether each item is a
-restatement of something already disposed or genuinely new, and the ways out:
-keep iterating (say how many more rounds and why), dispose the open findings
-(`accepted`/`rejected` need their word; `deferred-to-build` is yours when §9's
-test holds), or re-scope the plan and start the loop over from round 1.
+**The round budget (revised 2026-08-28).** The exit condition is the
+**severity trend**: the loop is done when a round produces zero blocker/high
+findings after dispositions. **Three rounds is the default budget, and it is a
+hard stop, not a check-in.** When blockers/highs are still arriving at the end
+of round 3, stop and take it to the user in one message — what keeps coming
+back, whether each item restates something already disposed or is genuinely
+new, and the ways out: fund more rounds (say how many and why), dispose the
+open findings (`accepted`/`rejected` need their word; `deferred-to-build` is
+yours when §9's test holds), or re-scope the plan and restart from round 1.
+**Only the user funds rounds past 3 — a standing mandate cannot**; the mandate
+grants dispositions and approvals, never review spend. Two cautions, both from
+the record: a pilot's round 4 once caught silent data corruption, which is why
+the user gets the choice instead of the loop simply ending — and the same
+apparatus later ran 9–11 rounds per plan across parallel lanes while the
+defects that reached the client sat outside the diff entirely. Review rounds
+converge on the diff being right; they cannot make the shape right (§4/§7) and
+they are not a substitute for the production proof.
 
 ---
 
@@ -727,7 +753,8 @@ table of the version you are about to get approved, immediately before
  "item": {"class": "tests", "proof": "python3 -m unittest discover -s tests"}}
 ```
 
-`class` is one of exactly `tests`, `real-data`, `live-check`, `visual`. Default
+`class` is one of exactly `tests`, `real-data`, `live-check`, `visual`,
+`client-artifact`. Default
 to the profile's `evidence.default_classes`; add more freely; drop one only with
 the argument written in the plan's Evidence section — the approval binds to the
 plan hash, so the user is approving that argument too. **At least one class is

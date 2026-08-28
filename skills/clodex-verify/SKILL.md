@@ -269,7 +269,7 @@ Three fields, all required, all non-empty:
 
 | Field | Is | Is not |
 |---|---|---|
-| `class` | one of `tests`, `real-data`, `live-check`, `visual` | a name you made up |
+| `class` | one of `tests`, `real-data`, `live-check`, `visual`, `client-artifact` | a name you made up |
 | `how` | the exact command run, or the concrete action taken | "ran the tests" |
 | `result` | what it showed — exit code, counts, the observation, the artifact path | "passed" |
 
@@ -365,6 +365,29 @@ Record what was rendered and where:
           "how": "npm run build && npx serve dist, screenshot of / at 1440x900 -> <run dir>/home-1440.png",
           "result": "user reviewed <run dir>/home-1440.png and accepted it: 'spacing is right, ship it'"}}
 ```
+
+### client-artifact
+
+Added 2026-08-28. The artifact a **client or external operator** receives or
+opens — a sent email or digest, a generated document or deck, a shared folder
+tree — read **from their side**: the sent-mail copy, the rendered file, the
+tree as their account lists it. Not the template, not the generator's output
+variable, not a unit test of the renderer. This class exists because a client
+digest once carried a raw `[SSL: ...]` exception string for days: the code that
+produced it was reviewed and green, and nobody ever opened what the client
+opened.
+
+`how` names where you read it (which mailbox, which file, which tree) and
+`result` describes the artifact's actual content against what the plan promised
+— including "no exception-shaped text, no duplicate sends, formatting matches
+the accepted example."
+
+**This class does not book as debt while the surface exists.** The one legal
+debt reason: the artifact does not exist yet because nothing serving this
+change has produced one (deploy-on-push repos). "No mailbox access" is not
+debt — it is a blocker to raise with the user now, because shipping a
+client-facing change nobody can read from the client's side is the decision
+the audits exist to prevent.
 
 ---
 

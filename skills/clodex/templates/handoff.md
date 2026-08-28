@@ -53,6 +53,20 @@ did not land, not only checks that pass when it did.>
 3. Post-deploy checks: `<positive check>` and the negative test:
    `<a probe that must FAIL/refuse, proving the boundary still holds>`
 
+**Production proof — every deliberately fired proof gets all five fields, and a
+fire with no watcher does not count as verification** (a deliberately fired,
+unwatched sync once failed, emailed the client, and was later recorded as a
+discovery — this row shape is why that cannot recur):
+
+| proof | watcher | fired | deadline | result | next schedule |
+|---|---|---|---|---|---|
+| `<the run/command fired>` | `<named human>` | `<ts>` | `<when it must have completed>` | `<verify: terminal state + visible outcome>` | `<the next unattended fire this must survive>` |
+
+**Soak plan:** done means `<N>` consecutive green UNATTENDED scheduled runs
+(`<which schedule>`), read from `<which surface>`, by `<who>`. Until then the
+release is `SOAKING n/<N>`, whatever the gates said. Headline finding counts do
+not belong in this artifact — the counts live in §6 against the ledger.
+
 ## 5. Accepted residuals — yours to overturn pre-merge
 
 <Every finding accepted (or deferred) during this run that ships with the
