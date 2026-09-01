@@ -50,14 +50,16 @@
     },
     "inputs": {
       "type": "array",
-      "description": "The input artifacts this invocation was given, hashed by the runner: the prompt file plus every --input path. Lets a later stage prove the reviewed artifact has not changed.",
+      "description": "The input artifacts this invocation was given, with the prompt file plus every --input path. New records carry the invocation-start hash and the envelope-build end hash; legacy bare-path records fail closed with a null start hash.",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["path", "sha256"],
         "properties": {
           "path": {"type": "string"},
-          "sha256": {"type": "string"}
+          "sha256": {"type": ["string", "null"]},
+          "sha256_end": {"type": ["string", "null"]},
+          "hash_moment": {"type": "string", "enum": ["start", "unknown"]}
         }
       }
     },

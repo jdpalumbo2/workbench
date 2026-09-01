@@ -2,14 +2,14 @@
 """The clodex result-envelope contract: export, assemble, validate.
 
 `run-codex.sh` is the authority for every fact it can observe — the invocation
-id, the role, exit metadata, the paths to full output, and the hashes of the
-input artifacts. Codex's structured output covers only the model-authored part
-(`$defs.model_report` in envelope.schema.json): the model's own completeness
-assessment and its findings. This module exports that sub-schema for
-`codex --output-schema`, folds the model's report into a complete envelope,
-reconciles the final status against how the process actually ended, and
-validates the whole document. The model is never trusted for a fact the runner
-knows, and never for the status.
+id, the role, exit metadata, the paths to full output, and the input hashes
+recorded at invocation start. Codex's structured output covers only the
+model-authored part (`$defs.model_report` in envelope.schema.json): the model's
+own completeness assessment and its findings. This module exports that
+sub-schema for `codex --output-schema`, folds the model's report into a
+complete envelope, reconciles the final status against how the process actually
+ended, and validates the whole document. The model is never trusted for a fact
+the runner knows, and never for the status.
 
     python3 validate_envelope.py model-schema --out <path>
     python3 validate_envelope.py build <facts...> --out <path>   # prints status
@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -184,6 +185,22 @@ def duration_ms(started_at, ended_at):
     return int((end - start).total_seconds() * 1000)
 
 
+def input_record(declared):
+    """Split a path<TAB>start-hash line, retaining legacy bare-path semantics.
+
+    A pre-upgrade record arrives under the runner's explicit "#legacy<TAB>"
+    prefix, so it can never be misread as a digest claim whatever its name
+    contains. For hashed records the digest is recognized from the RIGHT and
+    validated as 64 hex chars; a line failing that reads as legacy —
+    fail-closed, never a fabricated attestation."""
+    if declared.startswith("#legacy\t"):
+        return declared[len("#legacy\t"):], None
+    path, sep, digest = declared.rpartition("\t")
+    if sep and re.fullmatch(r"[0-9a-f]{64}", digest):
+        return path, digest
+    return declared, None
+
+
 def build_envelope(args):
     """Assemble the full envelope from runner facts plus the model's report."""
     signal = args.exit_code - 128 if args.exit_code is not None and args.exit_code >= 128 else None
@@ -193,11 +210,35 @@ def build_envelope(args):
 
     seen = set()
     inputs = []
-    for path in args.input or []:
+    for declared in args.input or []:
+        path, start_hash = input_record(declared)
         if path in seen:
             continue
         seen.add(path)
-        inputs.append({"path": path, "sha256": sha256_file(path)})
+        if start_hash is None:
+            # Pre-upgrade .inputs files contained only paths. Do not turn the
+            # late digest into a false claim about what the reviewer saw.
+            inputs.append({
+                "path": path,
+                "sha256": None,
+                "hash_moment": "unknown",
+            })
+            continue
+
+        entry = {
+            "path": path,
+            "sha256": start_hash,
+            "sha256_end": None,
+            "hash_moment": "start",
+        }
+        try:
+            entry["sha256_end"] = sha256_file(path)
+        except EnvelopeError:
+            # The old builder could not produce a digest for a file that
+            # vanished at exit. Keep the envelope valid and make the missing
+            # end observation explicit without losing the start digest.
+            pass
+        inputs.append(entry)
 
     findings = []
     for index, finding in enumerate(report["findings"] if report else [], start=1):

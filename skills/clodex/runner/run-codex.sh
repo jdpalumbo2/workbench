@@ -17,9 +17,10 @@
 #
 # The prompt is never passed as a shell argument: codex reads it from stdin.
 # `--input` declares an artifact the invocation is working from (a plan, a
-# diff); the runner hashes each one into the envelope. The prompt file is
-# always an input. On --resume the prompt path is read back from the
-# invocation's meta when not given, so `--resume <id>` works alone.
+# diff); the runner records its start hash and observes its end hash in the
+# envelope. The prompt file is always an input. On --resume the prompt path is
+# read back from the invocation's meta when not given, so `--resume <id>` works
+# alone.
 #
 # Run state belongs to the repo being worked on, never to the skill catalogue.
 # Each role gets its own directory — keyed by run id when one is given, so two
@@ -104,6 +105,13 @@ role_model() {
     case "$1" in
         implementer) printf '%s\n' "${CODEX_MODEL:-gpt-5.6-luna}" ;;
         *) printf '%s\n' "${CODEX_MODEL:-gpt-5.6-sol}" ;;
+    esac
+}
+
+role_effort() {
+    case "$1" in
+        implementer|plan-reviewer|code-reviewer|advisor) printf 'xhigh\n' ;;
+        *) return 1 ;;
     esac
 }
 
@@ -238,7 +246,7 @@ if [ -n "$RESUME_ID" ]; then
     RESUMED=1
 else
     MODEL="$(role_model "$ROLE")"
-    EFFORT="${CODEX_EFFORT:-xhigh}"
+    EFFORT="${CODEX_EFFORT:-$(role_effort "$ROLE")}"
     # A detaching parent mints the id and hands it down, so the caller learns
     # the log path before the work has even started.
     INVOCATION_ID="${CLODEX_INVOCATION_ID:-$ROLE-$(date -u +%Y%m%dT%H%M%SZ)-$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')}"
@@ -284,19 +292,104 @@ fi
 # inputs and the model-authored sub-schema
 # --------------------------------------------------------------------------- #
 
+input_hash() {
+    python3 - "$1" <<'PY'
+import hashlib
+import sys
+
+digest = hashlib.sha256()
+with open(sys.argv[1], "rb") as handle:
+    for chunk in iter(lambda: handle.read(65536), b""):
+        digest.update(chunk)
+print(digest.hexdigest())
+PY
+}
+
+record_input() {
+    # A digest that failed to compute must refuse the invocation, never ride
+    # into the record as an empty start hash the schema would accept.
+    local declared="$1" digest
+    [ -f "$declared" ] || die "input artifact not found: $declared"
+    declared="$(abs_file "$declared")" || die "cannot resolve input artifact: $declared"
+    digest="$(input_hash "$declared")" || die "cannot hash input artifact: $declared"
+    case "$digest" in *[!0-9a-f]*|"") die "cannot hash input artifact: $declared" ;; esac
+    [ "${#digest}" -eq 64 ] || die "cannot hash input artifact: $declared"
+    printf '%s\t%s\n' "$declared" "$digest"
+}
+
+# The format header makes hashed and legacy records distinguishable by
+# declaration instead of by guessing at TABs: a file without it is wholly
+# pre-upgrade (bare paths); under it, a preserved legacy line carries the
+# "#legacy<TAB>" prefix and everything else is path<TAB>sha256.
+INPUTS_HEADER='#clodex-inputs: hashed-v1'
+
+recorded_input() {   # rc 0 when this path already has a line in INPUTS_FILE
+    local abs
+    abs="$(abs_file "$1")" || return 1
+    python3 - "$INPUTS_FILE" "$abs" <<'PY'
+import re
+import sys
+
+target = sys.argv[2]
+lines = [line.rstrip("\n") for line in open(sys.argv[1])]
+headered = bool(lines) and lines[0] == "#clodex-inputs: hashed-v1"
+for line in lines:
+    if line == "#clodex-inputs: hashed-v1":
+        continue
+    if not headered:
+        # A headerless file is wholly pre-upgrade: every line is a bare path,
+        # compared whole — the TAB+digest reading never applies to it.
+        if line == target:
+            raise SystemExit(0)
+        continue
+    if line.startswith("#legacy\t"):
+        if line[len("#legacy\t"):] == target:
+            raise SystemExit(0)
+        continue
+    path, sep, dig = line.rpartition("\t")
+    if sep and re.fullmatch(r"[0-9a-f]{64}", dig):
+        if path == target:
+            raise SystemExit(0)
+    elif line == target:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
 declare_inputs() {
-    local path
-    printf '%s\n' "$PROMPT_FILE"
-    for path in ${INPUTS[@]+"${INPUTS[@]}"}; do
-        [ -f "$path" ] || die "input artifact not found: $path"
-        abs_file "$path" || die "cannot resolve input artifact: $path"
-    done
+    local path line
+    printf '%s\n' "$INPUTS_HEADER"
     if [ "$RESUMED" -eq 1 ] && [ -f "$INPUTS_FILE" ]; then
-        cat "$INPUTS_FILE"
+        # A resume continues the same review. Preserve the original records —
+        # start hashes as they stand; pre-upgrade bare paths under an explicit
+        # legacy prefix so a pathological TAB-bearing name can never read as a
+        # digest claim — and append a record for anything this resume newly
+        # declares, so a late-added artifact is attested, not dropped.
+        local had_header=0
+        [ "$(head -n1 "$INPUTS_FILE" 2>/dev/null)" = "$INPUTS_HEADER" ] && had_header=1
+        while IFS= read -r line || [ -n "$line" ]; do
+            [ "$line" = "$INPUTS_HEADER" ] && continue
+            if [ "$had_header" -eq 1 ]; then
+                printf '%s\n' "$line"
+            else
+                printf '#legacy\t%s\n' "$line"
+            fi
+        done < "$INPUTS_FILE" || die "cannot read recorded inputs: $INPUTS_FILE"
+        for path in "$PROMPT_FILE" ${INPUTS[@]+"${INPUTS[@]}"}; do
+            recorded_input "$path" || record_input "$path"
+        done
+        return
     fi
+
+    record_input "$PROMPT_FILE"
+    for path in ${INPUTS[@]+"${INPUTS[@]}"}; do
+        record_input "$path"
+    done
 }
 
 DECLARED_INPUTS="$(declare_inputs)"
+# Written back whole every time: on a resume this is the original lines
+# verbatim plus any newly declared records, so a later resume still sees them.
 printf '%s\n' "$DECLARED_INPUTS" > "$INPUTS_FILE"
 
 python3 "$ENVELOPE_TOOL" model-schema --out "$MODEL_SCHEMA_FILE" || \
@@ -419,6 +512,7 @@ build_envelope() {
     local declared
     while IFS= read -r declared; do
         [ -n "$declared" ] || continue
+        [ "$declared" = "$INPUTS_HEADER" ] && continue
         build_args+=(--input "$declared")
     done <<< "$DECLARED_INPUTS"
     STATUS="$(python3 "$ENVELOPE_TOOL" "${build_args[@]}")" || return 1
