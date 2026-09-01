@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "commands": {
+    "install": null,
+    "build": null,
+    "test": "tests/run.sh",
+    "lint": null,
+    "typecheck": null
+  },
+  "version": {
+    "source": "skills/clodex/VERSION",
+    "field": null,
+    "bump_rule": "semver: minor for behavior changes, patch for docs/fixes"
+  },
+  "branch": {
+    "default": "main",
+    "work_on_default": false,
+    "naming": "clodex/<run-id>"
+  },
+  "tag": {
+    "enabled": true,
+    "format": "clodex-v{version}"
+  },
+  "changelog": null,
+  "docs": {
+    "architecture": ["docs/clodex-design.md"],
+    "plans_dir": "docs/plans"
+  },
+  "deploy": null,
+  "release_owner": "external",
+  "evidence": {
+    "default_classes": ["tests"]
+  },
+  "runtimes": [
+    {"name": "python3", "command": "python3"},
+    {"name": "codex", "command": "codex"}
+  ],
+  "required_env": [],
+  "actions": [
+    {
+      "id": "create-tag",
+      "argv": ["git", "tag", "clodex-v{version}"],
+      "cwd": null,
+      "target": "local tag",
+      "env_refs": [],
+      "policy": "always-ask-exact"
+    },
+    {
+      "id": "push-main",
+      "argv": ["git", "push", "origin", "main"],
+      "cwd": null,
+      "target": "origin/main (public repo github.com/jdpalumbo2/workbench)",
+      "env_refs": [],
+      "policy": "always-ask-exact"
+    },
+    {
+      "id": "push-tag",
+      "argv": ["git", "push", "origin", "clodex-v{version}"],
+      "cwd": null,
+      "target": "origin tag (public repo)",
+      "env_refs": [],
+      "policy": "always-ask-exact"
+    }
+  ],
+  "notes": "This repo IS the clodex catalogue: CLODEX_HOME resolves here via the ~/.claude/skills/clodex symlink, so runs in this repo self-host the engine. Worktree lanes are driven by the MAIN checkout's engine (through the symlink); in-flight edits to state/ or runner/ inside a lane never destabilize the run driving them. release_owner is external because releases here are Johnny's hand ritual (tag + push from the main checkout); lane runs end handed-off with a reviewed branch. Profile interviewed and ratified by Johnny 2026-09-01 (lane-A bootstrap)."
+}
