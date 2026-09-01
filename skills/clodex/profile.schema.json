@@ -25,6 +25,50 @@
       "description": "Profile contract version. 1 for clodex v0.1."
     },
 
+    "bootstrap": {
+      "type": "object",
+      "description": "Optional bootstrap currency record. When present, all four fields describe the inspected repository and the clodex version used to derive it.",
+      "required": ["clodex_version", "derived_at", "repo_fingerprint", "inspected"],
+      "additionalProperties": false,
+      "properties": {
+        "clodex_version": {
+          "type": "string",
+          "description": "Semver MAJOR.MINOR.PATCH copied from skills/clodex/VERSION."
+        },
+        "derived_at": {
+          "type": "string",
+          "description": "Date the bootstrap record was derived, formatted YYYY-MM-DD."
+        },
+        "repo_fingerprint": {
+          "type": "string",
+          "description": "Repository fingerprint formatted sha256:<64 lowercase hex>."
+        },
+        "inspected": {
+          "type": "array",
+          "description": "The inspected marker records; each item has exactly marker, present, and value.",
+          "items": {
+            "type": "object",
+            "required": ["marker", "present", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "marker": {
+                "type": "string",
+                "description": "The repository marker that was inspected."
+              },
+              "present": {
+                "type": "boolean",
+                "description": "Whether the marker was present."
+              },
+              "value": {
+                "type": ["string", "null"],
+                "description": "The marker's string value, or null for an existence marker."
+              }
+            }
+          }
+        }
+      }
+    },
+
     "commands": {
       "type": "object",
       "description": "Shell commands, run from the repo root. Every key is present; null means this repo genuinely has none. An omitted gate is silently skipped at verify, which is how offline-green runs hide real defects.",
@@ -160,8 +204,8 @@
       "properties": {
         "default_classes": {
           "type": "array",
-          "items": {"type": "string", "enum": ["tests", "real-data", "live-check", "visual"]},
-          "description": "tests = automated suites · real-data = run against production-shaped input · live-check = the deployed thing observed working · visual = rendered output reviewed."
+          "items": {"type": "string", "enum": ["tests", "real-data", "live-check", "visual", "client-artifact"]},
+          "description": "tests = automated suites · real-data = run against production-shaped input · live-check = the deployed thing observed working · visual = rendered output reviewed · client-artifact = the artifact a client receives, read from their side."
         }
       }
     },

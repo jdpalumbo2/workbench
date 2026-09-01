@@ -188,9 +188,9 @@ PY
 ```
 
 - **The declared classes** come from `clodex-plan` §10 and are what the user
-  approved as the definition of done. The vocabulary is exactly four:
-  `tests` · `real-data` · `live-check` · `visual`. There is no fifth, and you
-  never invent one.
+  approved as the definition of done. The vocabulary is exactly five:
+  `tests` · `real-data` · `live-check` · `visual` · `client-artifact`. There is
+  no sixth, and you never invent one.
 - **The profile gates** are the repo's own commands. They run **in addition to**
   the declared classes, every run, whether or not `tests` was declared: a repo's
   lint and typecheck catch things a plan's evidence table never thought about.
@@ -644,7 +644,7 @@ One entry per class you could not produce, appended before you leave:
 
 | Field | Is | Is not |
 |---|---|---|
-| `class` | the class deferred: `tests`, `real-data`, `live-check`, `visual` | a description of the work |
+| `class` | the class deferred: `tests`, `real-data`, `live-check`, `visual`, `client-artifact`; `client-artifact` cannot be booked as debt while the client-facing surface exists | a description of the work |
 | `reason` | why it could not be produced, naming the specific blocker (§6's table) | "not done", "out of scope", "will do later" |
 | `risk` | **what could go wrong because it wasn't** — the defect this class would have caught, where it would surface, and what it would cost to fix from there | a restatement of `reason` |
 
@@ -652,6 +652,10 @@ One entry per class you could not produce, appended before you leave:
 gets written lazily. "Live behaviour unverified" is `reason` said twice. A real
 risk names a failure this missing evidence would have caught and says what
 happens when it is found later instead.
+
+| Class | Debt rule |
+|---|---|
+| `client-artifact` | Cannot be booked as debt while the client-facing surface exists. The only legal debt reason is that no serving change has produced the artifact yet. |
 
 ### Where debt is accepted: `clodex-ship`, once. Not here.
 
@@ -664,7 +668,7 @@ to run, and **that** is where a human accepts it — in the same breath as
 authorizing the release it affects. Splitting that decision in two is how a
 release gets approved twice and understood once.
 
-An empty debt list is a normal, good outcome. So is a debt list with four entries
+An empty debt list is a normal, good outcome. So is a debt list with five entries
 in it. Neither changes what you do next.
 
 ---
@@ -681,7 +685,7 @@ import json, subprocess, sys
 state, run_dir = sys.argv[1], sys.argv[2]
 snap = json.loads(subprocess.check_output(["python3", state, "rebuild", run_dir]))
 ver, blockers = snap["verification"], []
-CLASSES = ("tests", "real-data", "live-check", "visual")
+CLASSES = ("tests", "real-data", "live-check", "visual", "client-artifact")
 
 declared = sorted({d.get("class") for d in ver["declared"]})
 if not declared:
@@ -752,7 +756,7 @@ print("VERIFY COMPLETE" if not blockers else "NOT DONE — %d blocker(s)" % len(
 PY
 ```
 
-**Debt never appears in `blockers`.** A run with four debt entries prints
+**Debt never appears in `blockers`.** A run with five debt entries prints
 `VERIFY COMPLETE`. That is the design, not an oversight: this stage has no gate.
 
 **`-z` is load-bearing in that last read.** Plain `git status --porcelain`
@@ -847,7 +851,7 @@ because §10 found something none of the other three can hold.
 | Running `deploy.verify_live` before ship deploys and recording it as a live check | It passes against the **old** release. Only a version-aware check proves anything before the deploy (§5). |
 | Skipping a real-data or live check quietly because it "isn't practical here" | Every infeasibility is one of §6's rows and every one becomes a debt entry with that as the reason. A silent skip leaves the class in neither state, and §10 fails. |
 | A debt entry whose `risk` restates its `reason` | `reason` is why it could not be produced. `risk` is the defect it would have caught, where it surfaces, and what fixing it from there costs (§9). |
-| Adding a field to a debt entry, or inventing a fifth evidence class | Exactly `class`, `reason`, `risk`; exactly `tests`, `real-data`, `live-check`, `visual`. §10 fails both. |
+| Adding a field to a debt entry, or inventing a sixth evidence class | Exactly `class`, `reason`, `risk`; exactly `tests`, `real-data`, `live-check`, `visual`, `client-artifact`. §10 fails both. |
 | Re-appending evidence after a resume | The reducer does not de-duplicate. Read `verification.evidence` first and append only the missing `(class, how)` (§1). |
 | Delegating with `--role implementer` | Every delegation here is read-only. `code-reviewer` is the role, and the runner sandboxes it accordingly (§7). |
 | Reading the worker's status out of its prose | The runner's exit code and the envelope decide. Only `complete` is a review; a `partial` is resumed, not restarted (§7). |
