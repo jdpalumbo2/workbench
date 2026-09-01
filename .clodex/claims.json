@@ -1,22 +1,99 @@
 {
   "claims": [
-    {"resource": "skills/clodex/state/**", "holder": "lane-A", "note": "reducer `by` fix, inspect_repo.py, bootstrap_check.py, event schema"},
-    {"resource": "skills/clodex/runner/**", "holder": "lane-A", "note": "input-hash-at-start fix, role_effort()"},
-    {"resource": "skills/clodex/profile.schema.json", "holder": "lane-A", "note": "client-artifact enum, optional bootstrap object"},
-    {"resource": "skills/clodex/VERSION", "holder": "lane-A", "note": "new file (seeded 0.3.0 at bootstrap); lane-A owns the bump + its test"},
-    {"resource": "skills/clodex/SKILL.md", "holder": "lane-A", "note": "§1 check 7, §3 re-derive path"},
-    {"resource": "skills/clodex-plan/SKILL.md", "holder": "lane-A", "note": "§6 mandate, §8 staleness check"},
-    {"resource": "skills/clodex-verify/SKILL.md", "holder": "lane-A", "note": "CLASSES tuple ~L684"},
-    {"resource": "skills/clodex/README.md", "holder": "lane-A", "note": "docs impact"},
-    {"resource": "README.md", "holder": "lane-A", "note": "docs impact"},
-    {"resource": "docs/clodex-design.md", "holder": "lane-A", "note": "docs impact"},
-    {"resource": "tests/test_bootstrap_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
-    {"resource": "tests/test_approval_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
-    {"resource": "tests/test_input_hash_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
-    {"resource": "tests/test_client_artifact_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
-    {"resource": "skills/lane-orchestration/**", "holder": "lane-B", "note": "orchestrator rebuild, new skill dir"},
-    {"resource": "skills/opus-orchestration/**", "holder": "lane-B", "note": "being replaced/renamed by lane B"},
-    {"resource": "skills/clodex/templates/lane-brief.md", "holder": "lane-B", "note": "§4 mandate declaration + §16 park protocol additions"},
-    {"resource": "tests/test_orchestrator_*.py", "holder": "lane-B", "note": "lane B exploit/control pairs"}
+    {
+      "resource": "skills/clodex/state/**",
+      "holder": "lane-A",
+      "note": "reducer `by` fix, inspect_repo.py, bootstrap_check.py, event schema"
+    },
+    {
+      "resource": "skills/clodex/runner/**",
+      "holder": "lane-A",
+      "note": "input-hash-at-start fix, role_effort()"
+    },
+    {
+      "resource": "skills/clodex/profile.schema.json",
+      "holder": "lane-A",
+      "note": "client-artifact enum, optional bootstrap object"
+    },
+    {
+      "resource": "skills/clodex/VERSION",
+      "holder": "lane-A",
+      "note": "new file (seeded 0.3.0 at bootstrap); lane-A owns the bump + its test"
+    },
+    {
+      "resource": "skills/clodex/SKILL.md",
+      "holder": "lane-A",
+      "note": "\u00a71 check 7, \u00a73 re-derive path"
+    },
+    {
+      "resource": "skills/clodex-plan/SKILL.md",
+      "holder": "lane-A",
+      "note": "\u00a76 mandate, \u00a78 staleness check"
+    },
+    {
+      "resource": "skills/clodex-verify/SKILL.md",
+      "holder": "lane-A",
+      "note": "CLASSES tuple ~L684"
+    },
+    {
+      "resource": "skills/clodex-build/SKILL.md",
+      "holder": "lane-A",
+      "note": "\u00a712 exit-check null-hash guard (amendment v7, batch 6)"
+    },
+    {
+      "resource": "skills/clodex/README.md",
+      "holder": "lane-A",
+      "note": "docs impact"
+    },
+    {
+      "resource": "README.md",
+      "holder": "lane-A",
+      "note": "docs impact"
+    },
+    {
+      "resource": "docs/clodex-design.md",
+      "holder": "lane-A",
+      "note": "docs impact"
+    },
+    {
+      "resource": "tests/test_bootstrap_*.py",
+      "holder": "lane-A",
+      "note": "exploit/control pairs"
+    },
+    {
+      "resource": "tests/test_approval_*.py",
+      "holder": "lane-A",
+      "note": "exploit/control pairs"
+    },
+    {
+      "resource": "tests/test_input_hash_*.py",
+      "holder": "lane-A",
+      "note": "exploit/control pairs"
+    },
+    {
+      "resource": "tests/test_client_artifact_*.py",
+      "holder": "lane-A",
+      "note": "exploit/control pairs"
+    },
+    {
+      "resource": "skills/lane-orchestration/**",
+      "holder": "lane-B",
+      "note": "orchestrator rebuild, new skill dir"
+    },
+    {
+      "resource": "skills/opus-orchestration/**",
+      "holder": "lane-B",
+      "note": "being replaced/renamed by lane B"
+    },
+    {
+      "resource": "skills/clodex/templates/lane-brief.md",
+      "holder": "lane-B",
+      "note": "\u00a74 mandate declaration + \u00a716 park protocol additions"
+    },
+    {
+      "resource": "tests/test_orchestrator_*.py",
+      "holder": "lane-B",
+      "note": "lane B exploit/control pairs"
+    }
   ]
 }
