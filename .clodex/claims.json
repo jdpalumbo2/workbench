@@ -13,6 +13,10 @@
     {"resource": "tests/test_bootstrap_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
     {"resource": "tests/test_approval_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
     {"resource": "tests/test_input_hash_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
-    {"resource": "tests/test_client_artifact_*.py", "holder": "lane-A", "note": "exploit/control pairs"}
+    {"resource": "tests/test_client_artifact_*.py", "holder": "lane-A", "note": "exploit/control pairs"},
+    {"resource": "skills/lane-orchestration/**", "holder": "lane-B", "note": "orchestrator rebuild, new skill dir"},
+    {"resource": "skills/opus-orchestration/**", "holder": "lane-B", "note": "being replaced/renamed by lane B"},
+    {"resource": "skills/clodex/templates/lane-brief.md", "holder": "lane-B", "note": "§4 mandate declaration + §16 park protocol additions"},
+    {"resource": "tests/test_orchestrator_*.py", "holder": "lane-B", "note": "lane B exploit/control pairs"}
   ]
 }
