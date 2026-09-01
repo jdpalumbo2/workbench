@@ -1,0 +1,40 @@
+{
+  "date": "2026-09-01",
+  "mode": "unattended",
+  "budget": {
+    "codex_weekly_pct_ceiling": 50,
+    "codex_5h_pct_ceiling": 50,
+    "claude_usd_ceiling": 40,
+    "per_lane_usd_ceiling": 20
+  },
+  "lanes": [
+    {
+      "id": "foundation",
+      "kind": "repo",
+      "repo": "/tmp/synthetic-lane-repo",
+      "worktree": "/tmp/synthetic-lane-repo-worktrees/foundation",
+      "branch": "lane/foundation",
+      "base": "0123456789abcdef0123456789abcdef01234567",
+      "brief": "docs/briefs/foundation.md",
+      "depends_on": [],
+      "claims": ["src/foundation"],
+      "client_visible": false,
+      "direction_gate": "no",
+      "push": false
+    },
+    {
+      "id": "finish",
+      "kind": "deliverable",
+      "repo": "/tmp/synthetic-lane-repo",
+      "worktree": "/tmp/synthetic-lane-repo-worktrees/finish",
+      "branch": "lane/finish",
+      "base": "0123456789abcdef0123456789abcdef01234567",
+      "brief": "docs/briefs/finish.md",
+      "depends_on": ["foundation"],
+      "claims": ["docs/finish"],
+      "client_visible": true,
+      "direction_gate": "yes",
+      "acceptance_ref": "sample-finish"
+    }
+  ]
+}
