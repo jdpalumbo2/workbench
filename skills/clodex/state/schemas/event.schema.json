@@ -96,6 +96,18 @@
     "plan_hash": {
       "type": ["string", "null"],
       "description": "On plan:approved and approval:granted, the hash the approval binds to. On finding:recorded, the plan hash the finding was raised against."
+    },
+    "by": {
+      "type": ["string", "null"],
+      "description": "Attribution on new approval events: user, mandate, orchestrator, or ship, with the per-scope rules enforced by the state engine. Optional on finding:disposed for historical compatibility; when present it is user or mandate."
+    },
+    "authorization_ref": {
+      "type": ["string", "null"],
+      "description": "Optional approval provenance reference. For by:'orchestrator', the state engine requires a repo-relative committed artifact and its 40-hex commit SHA as <path>@<sha>, resolved against the run's recorded repository and start head."
+    },
+    "run": {
+      "type": ["string", "null"],
+      "description": "Run binding for a pre-plan scope:'mandate' approval; new appends must match the run id recorded by run:opened."
     }
   }
 }

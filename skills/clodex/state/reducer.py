@@ -259,7 +259,12 @@ def _on_plan_amended(snap, event):
     # to it. The approval stays in the snapshot carrying its revocation, so a
     # later skill can answer "what happened" from the manifest alone.
     for approval in snap["approvals"]:
-        if approval["revoked"] is None and approval["plan_hash"] == superseded:
+        run_bound_mandate = (
+            approval["scope"] == "mandate" and approval["plan_hash"] is None
+        )
+        if approval["revoked"] is None and (
+            approval["plan_hash"] == superseded or run_bound_mandate
+        ):
             approval["revoked"] = {
                 "seq": event.get("seq"),
                 "t": event.get("t"),
@@ -271,9 +276,12 @@ def _on_plan_amended(snap, event):
 def _on_approval(snap, event):
     plan = snap["plan"]
     current = plan["hash"]
+    scope = event.get("scope", "plan")
     plan_hash = event.get("plan_hash", current)
-    # An approval bound to nothing could never be revoked by an amendment.
-    if not plan_hash:
+    run_bound_mandate = scope == "mandate" and current is None and plan_hash is None
+    # A run-bound mandate is deliberately bound to the run instead of a plan;
+    # every other approval bound to nothing could never be revoked by an amendment.
+    if not plan_hash and not run_bound_mandate:
         raise _violation(
             event,
             "approval must bind to a plan hash; none given and no plan is recorded",
@@ -288,16 +296,22 @@ def _on_approval(snap, event):
             "approval binds to plan hash %r but the current plan hash is %r"
             % (plan_hash, current),
         )
-    snap["approvals"].append({
+    approval = {
         "t": event.get("t"),
-        "scope": event.get("scope", "plan"),
+        "scope": scope,
         "by": event.get("by", "user"),
         "plan_version": event.get("plan_version", plan["version"]),
         "plan_hash": plan_hash,
         "actions": list(event.get("actions", [])),
         "accepted_debt": list(event.get("accepted_debt", [])),
         "revoked": None,
-    })
+    }
+    # Optional provenance is structural telemetry. New-event rules validate it;
+    # the reducer keeps old logs reducible when either field was absent.
+    for key in ("run", "authorization_ref"):
+        if key in event:
+            approval[key] = event[key]
+    snap["approvals"].append(approval)
 
 
 def _on_batch_opened(snap, event):
@@ -361,6 +375,8 @@ def _on_finding_disposed(snap, event):
     # manifest. Carried only when given, so old logs reduce unchanged.
     if "note" in event:
         finding["note"] = event["note"]
+    if "by" in event:
+        finding["disposition_by"] = event["by"]
 
 
 def _verification_bucket(bucket):

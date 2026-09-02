@@ -81,8 +81,10 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import secrets
 import sys
+import subprocess
 import tempfile
 import time
 from contextlib import contextmanager
@@ -530,6 +532,10 @@ def _stamp(event, seq, timestamp):
 #: is the `invocation` field. (The enum lives in the runner's envelope schema;
 #: repeated here because the state engine must not read runner files to append.)
 _CODEX_ROLES = ("plan-reviewer", "implementer", "code-reviewer", "advisor")
+_APPROVAL_EVENTS = ("approval:granted", "plan:approved")
+_APPROVAL_ATTRIBUTIONS = ("user", "mandate", "orchestrator", "ship")
+_MANDATE_GRANTS = ("finding-disposition", "plan-approval", "direction-approval")
+_AUTHORIZATION_REF = re.compile(r"^.+@[0-9a-f]{40}$")
 
 
 def _vet_new_event(event):
@@ -542,7 +548,73 @@ def _vet_new_event(event):
     without its `invocation` has lost the join to the envelope that carries its
     location and detail. Both shapes shipped in the field; neither is a record.
     """
-    if event.get("e") != "finding:recorded":
+    name = event.get("e")
+    if name in _APPROVAL_EVENTS:
+        by = event.get("by")
+        if not isinstance(by, str) or not by or by not in _APPROVAL_ATTRIBUTIONS:
+            raise ClodexStateError(
+                "%s needs a non-empty 'by' in {%s} — an attribution-less approval "
+                "cannot be recorded as the user's" % (name, ", ".join(_APPROVAL_ATTRIBUTIONS))
+            )
+        scope = event.get("scope", "plan")
+        if by == "ship" and scope != "handoff":
+            raise ClodexStateError(
+                "%s with by:'ship' must use scope:'handoff'" % name
+            )
+        if scope == "handoff" and by not in ("ship", "user"):
+            raise ClodexStateError(
+                "%s scope:'handoff' accepts only by:'ship' or by:'user'" % name
+            )
+        if scope == "release-authorization" and by != "user":
+            raise ClodexStateError(
+                "%s scope:'release-authorization' must be attributed to the user" % name
+            )
+        if event.get("accepted_debt") and by != "user":
+            raise ClodexStateError(
+                "%s with non-empty accepted_debt must be attributed to the user" % name
+            )
+        if by == "orchestrator":
+            ref = event.get("authorization_ref")
+            path = ref.rsplit("@", 1)[0] if isinstance(ref, str) and "@" in ref else ""
+            if (
+                scope != "mandate"
+                or not isinstance(ref, str)
+                or _AUTHORIZATION_REF.fullmatch(ref) is None
+                or os.path.isabs(path)
+                or ".." in path.split("/")
+            ):
+                raise ClodexStateError(
+                    "%s with by:'orchestrator' needs scope:'mandate' and a "
+                    "repo-relative authorization_ref '<path>@<40-hex-sha>'" % name
+                )
+        if by == "mandate" and scope not in ("plan", "direction"):
+            raise ClodexStateError(
+                "%s with by:'mandate' must consume scope:'plan' or scope:'direction'" % name
+            )
+        if scope == "mandate":
+            if by not in ("user", "orchestrator"):
+                raise ClodexStateError(
+                    "%s scope:'mandate' accepts only by:'user' or by:'orchestrator'" % name
+                )
+            actions = event.get("actions")
+            if actions is None:
+                actions = []
+            if not isinstance(actions, list):
+                raise ClodexStateError(
+                    "%s scope:'mandate' needs actions with only the three allowed grants" % name
+                )
+            for action in actions:
+                if not isinstance(action, dict) or action.get("grants") not in _MANDATE_GRANTS:
+                    raise ClodexStateError(
+                        "%s scope:'mandate' has a grant outside {%s}" %
+                        (name, ", ".join(_MANDATE_GRANTS))
+                    )
+    elif name == "finding:disposed" and "by" in event:
+        if event.get("by") not in ("user", "mandate"):
+            raise ClodexStateError(
+                "finding:disposed 'by' must be 'user' or 'mandate' when present"
+            )
+    if name != "finding:recorded":
         return
     for key in ("severity", "summary"):
         value = event.get(key)
@@ -559,6 +631,93 @@ def _vet_new_event(event):
                 "finding:recorded from Codex role %r needs its 'invocation' — "
                 "without it the join to the envelope (location, detail) is lost"
                 % source
+            )
+
+
+def _has_mandate_grant(snapshot, grant):
+    """Return whether a standing mandate in `snapshot` grants `grant`."""
+    for approval in snapshot.get("approvals") or []:
+        if approval.get("scope") != "mandate" or approval.get("revoked") is not None:
+            continue
+        for action in approval.get("actions") or []:
+            if isinstance(action, dict) and action.get("grants") == grant:
+                return True
+    return False
+
+
+def _authorization_resolves(snapshot, event):
+    """Return whether an orchestrator ref names an existing, pre-run commit artifact."""
+    ref = event.get("authorization_ref")
+    if not isinstance(ref, str) or "@" not in ref:
+        return False
+    path, sha = ref.rsplit("@", 1)
+    repo = snapshot.get("repo")
+    start_head = (snapshot.get("git") or {}).get("start_head")
+    if (
+        not isinstance(repo, str)
+        or not repo
+        or not isinstance(start_head, str)
+        or not start_head
+        or not path
+        or os.path.isabs(path)
+        or ".." in path.split("/")
+    ):
+        return False
+
+    def git(*args):
+        try:
+            return subprocess.run(
+                ["git", "-C", repo] + list(args),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return None
+
+    kind = git("cat-file", "-t", sha)
+    if kind is None or kind.returncode != 0 or kind.stdout.strip() != "commit":
+        return False
+    artifact = git("cat-file", "-e", "%s:%s" % (sha, path))
+    if artifact is None or artifact.returncode != 0:
+        return False
+    ancestor = git("merge-base", "--is-ancestor", sha, start_head)
+    return ancestor is not None and ancestor.returncode == 0
+
+
+def _vet_stateful_event(snapshot, event):
+    """Rules that bind NEW appends to the reduced prior snapshot, inside the writer lock.
+
+    The state is reduced before this hook runs, so a mandate revoked by an
+    earlier event in the same log cannot authorize the candidate event.
+    """
+    name = event.get("e")
+    scope = event.get("scope", "plan")
+    by = event.get("by")
+
+    if name in _APPROVAL_EVENTS and by == "mandate" and scope in ("plan", "direction"):
+        grant = "%s-approval" % scope
+        if not _has_mandate_grant(snapshot, grant):
+            raise ClodexStateError(
+                "%s by:'mandate' needs a standing mandate granting %r" % (name, grant)
+            )
+    if name == "finding:disposed" and by == "mandate":
+        if not _has_mandate_grant(snapshot, "finding-disposition"):
+            raise ClodexStateError(
+                "finding:disposed by:'mandate' needs a standing mandate granting "
+                "'finding-disposition'"
+            )
+    if name in _APPROVAL_EVENTS and scope == "mandate" and snapshot["plan"]["hash"] is None:
+        run_id = snapshot.get("run")
+        if not run_id or event.get("run") != run_id:
+            raise ClodexStateError(
+                "%s scope:'mandate' before a plan needs the manifest run id in 'run'" % name
+            )
+    if name in _APPROVAL_EVENTS and by == "orchestrator":
+        if not _authorization_resolves(snapshot, event):
+            raise ClodexStateError(
+                "%s authorization_ref does not resolve to a pre-run commit artifact" % name
             )
 
 
@@ -590,6 +749,9 @@ def append_event(run_dir, event):
         else:
             _repair_torn_tail(path)
             events = _read_events(run_dir)
+
+        snapshot = reduce_events(events)  # stateful vetting sees the whole prior log
+        _vet_stateful_event(snapshot, event)
 
         seq = _last_seq(events) + 1
         record = _stamp(event, seq, _now_iso())
@@ -837,7 +999,10 @@ def _cmd_telemetry_sync(args):
                 "round": None,
                 "status": envelope.get("status"),
                 "envelope": path,
-                "input_hashes": [i.get("sha256") for i in envelope.get("inputs") or []],
+                "input_hashes": [
+                    i.get("sha256") for i in envelope.get("inputs") or []
+                    if i.get("sha256") is not None
+                ],
                 "duration_s": (duration_ms / 1000.0) if duration_ms is not None else None,
                 "resumed": (envelope.get("codex") or {}).get("resumed"),
             }
