@@ -80,7 +80,7 @@ everything that already doesn't have a dedicated review lane the way code does.
 | Skill | What it governs |
 |---|---|
 | [jp-frontend-design](skills/jp-frontend-design/) | The ORDER of frontend design work: brief → tokens → hero screen → screenshot-critique loop → scale out. A process skill, built to run beside a craft-level design skill |
-| [opus-orchestration](skills/opus-orchestration/) | Large multi-deliverable builds as workflow-orchestrated Opus fleets: the premium main thread plans, gates, and reviews; Opus agents research, draft, adversarially verify, and fix |
+| [lane-orchestration](skills/lane-orchestration/) | Deterministic overnight orchestration for clodex lanes: quota meters, dry-run dispatch plans, park/unpark, budget gates. Replaces opus-orchestration (renamed 2026-09-01). |
 | [agentmail-onboard](skills/agentmail-onboard/) | Onboarding a new email + Telegram agent against an agentmail control plane, one runbook step at a time, with every outbound send behind a human approval tap |
 | [vinyl-dig](skills/vinyl-dig/) | A parallel record-shop crawl: one subagent per shop, prices benchmarked against Discogs, deduped against your collection, and a tiered buy list at the end |
 
