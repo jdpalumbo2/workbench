@@ -86,5 +86,152 @@
       "policy": "always-ask-exact"
     }
   ],
-  "notes": "This repo IS the clodex catalogue: CLODEX_HOME resolves here via the ~/.claude/skills/clodex symlink, so runs in this repo self-host the engine. Worktree lanes are driven by the MAIN checkout's engine (through the symlink); in-flight edits to state/ or runner/ inside a lane never destabilize the run driving them. release_owner is external because releases here are Johnny's hand ritual (tag + push from the main checkout); lane runs end handed-off with a reviewed branch. Profile interviewed and ratified by Johnny 2026-09-01 (lane-A bootstrap). AMENDED 2026-09-01 (Johnny-approved, lane-A run r-2026-09-01-a): version.source set to null so skills/clodex/VERSION is NOT release-owned \u2014 it is the skill-version file that runs themselves own and bump per bump_rule (minor for behavior, patch for docs/fixes); tags follow it by hand at Johnny's release ritual (release_owner external, so ship's version machinery never runs here)."
+  "notes": "This repo IS the clodex catalogue: CLODEX_HOME resolves here via the ~/.claude/skills/clodex symlink, so runs in this repo self-host the engine. Worktree lanes are driven by the MAIN checkout's engine (through the symlink); in-flight edits to state/ or runner/ inside a lane never destabilize the run driving them. release_owner is external because releases here are Johnny's hand ritual (tag + push from the main checkout); lane runs end handed-off with a reviewed branch. Profile interviewed and ratified by Johnny 2026-09-01 (lane-A bootstrap). AMENDED 2026-09-01 (Johnny-approved, lane-A run r-2026-09-01-a): version.source set to null so skills/clodex/VERSION is NOT release-owned — it is the skill-version file that runs themselves own and bump per bump_rule (minor for behavior, patch for docs/fixes); tags follow it by hand at Johnny's release ritual (release_owner external, so ship's version machinery never runs here).",
+  "bootstrap": {
+    "clodex_version": "0.4.0",
+    "derived_at": "2026-09-01",
+    "repo_fingerprint": "sha256:946cf925a0e147b66fef39b726613a9880eeab0da5513a3b9775e98cd32725c0",
+    "inspected": [
+      {
+        "marker": "package.json",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "pyproject.toml",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "Makefile",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "Dockerfile",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "docker-compose.yml",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "tox.ini",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "vercel.json",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "railway.json",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "fly.toml",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".nvmrc",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".tool-versions",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".python-version",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "go.mod",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "Cargo.toml",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "requirements.txt",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "setup.py",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "tests/",
+        "present": true,
+        "value": null
+      },
+      {
+        "marker": ".github/workflows",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".gcloudignore",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".dockerignore",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".vercelignore",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".npmignore",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "CHANGELOG.md",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "js-lockfile",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "package.json#scripts",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "package.json#engines",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": ".github/workflows#files",
+        "present": false,
+        "value": null
+      },
+      {
+        "marker": "pyproject.toml#requires-python",
+        "present": false,
+        "value": null
+      }
+    ]
+  }
 }
