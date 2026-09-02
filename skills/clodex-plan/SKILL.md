@@ -674,6 +674,15 @@ defects that reached the client sat outside the diff entirely. Review rounds
 converge on the diff being right; they cannot make the shape right (§4/§7) and
 they are not a substitute for the production proof.
 
+**Funded rounds leave a record.** Nothing in the event vocabulary says "the
+user funded more rounds", so a cap with no footprint is a cap nobody can
+audit — two runs went 7 and 8 rounds within days of this rule landing and the
+log cannot say whether anyone was asked. When the user funds rounds past 3,
+the next `plan:amended` (or, if no amendment follows, the `plan:approved`)
+carries it in `note`, quoting them: `"rounds funded to 5 by user: <their
+words>"`. A round 4+ whose preceding events carry no such note was not funded,
+whatever the transcript says.
+
 ---
 
 ## 9. Dispose every finding

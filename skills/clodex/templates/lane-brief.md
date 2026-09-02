@@ -42,18 +42,6 @@ two extra merges because its prescribed base did not exist yet.
 "you MAY renumber your migration to 010 if 008/009 are taken". No exception
 listed = no exception.>
 
-<For a DISPATCHED lane (run under lane-orchestration), two structured entries
-belong here:
-MANDATE: this lane runs under the run-scoped mandate granted at run:opened
-(authorization_ref: <run-plan path>@<commit sha>; grants: finding-disposition,
-plan-approval, direction-approval). This line is informative — the approval
-EVENT in the lane's ledger is the authority, and every consumption reads
-by:"mandate". Blocker/high findings sit outside the mandate's practical reach:
-the orchestrator's gate parks a lane that auto-accepts one.
-PUSH: you MAY push exactly your own branch `<branch>` to `<remote>` — and
-nothing else — when (and only when) the run-plan sets push: true for this
-lane. Default is no push; main, tags, and every other ref stay forbidden.>
-
 ## 5. Required reading, section-precise
 <File → section, not whole documents: "docs/ARCHI.md §transport", "the
 orchestration plan §merge-order". A reading list without sections gets

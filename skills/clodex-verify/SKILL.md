@@ -382,12 +382,15 @@ opened.
 — including "no exception-shaped text, no duplicate sends, formatting matches
 the accepted example."
 
-**This class does not book as debt while the surface exists.** The one legal
-debt reason: the artifact does not exist yet because nothing serving this
-change has produced one (deploy-on-push repos). "No mailbox access" is not
-debt — it is a blocker to raise with the user now, because shipping a
-client-facing change nobody can read from the client's side is the decision
-the audits exist to prevent.
+**This class is recorded like any other — verify has no gate — but its debt
+is never routine.** The one ordinary debt reason: the artifact does not exist
+yet because nothing serving this change has produced one (deploy-on-push
+repos). Any other reason — no mailbox access, no rendered file, nobody could
+open the tree — is still recorded as debt here with that reason verbatim, and
+it reaches `clodex-ship`'s authorization as its own line, where the user
+decides with the risk in front of them: shipping a client-facing change nobody
+read from the client's side is the decision the audits exist to make visible.
+Verify never blocks on it; ship never buries it.
 
 ---
 
