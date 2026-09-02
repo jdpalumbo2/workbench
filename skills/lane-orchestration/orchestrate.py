@@ -781,9 +781,13 @@ CODEX_STAGE_TABLE = {
 
 def _qa_claude_wrapper_argv(stage, lane, run_id, invocation, ledger, op_id):
     """Build an attempt-unique wrapper command for orchestrator-held Claude QA."""
-    qa_attempt = Path(ledger) / "qa" / op_id
-    envelope = qa_attempt / ("%s.envelope.json" % stage)
-    marker = qa_attempt / ("%s.started" % stage)
+    oracle = Path(orchestrator_state.oracle_for(
+        str(ledger), lane["id"], stage, op_id, provider="claude"
+    ))
+    marker = orchestrator_state.marker_for(
+        str(ledger), lane["id"], stage, op_id, provider="claude"
+    )
+    envelope = oracle / ("%s.envelope.json" % stage)
     command = _claude_argv(stage, lane, invocation, lane["brief"], ledger)
     return [
         "python3", str(WRAPPER_PATH), "--op-id", op_id,
@@ -867,10 +871,12 @@ def _print_dispatch_plan(plan, plan_path, plan_sha, lanes, gate_map, ledger_dir)
                 invocation = _stage_invocation(stage, lane, run_id)
                 claude = _claude_argv(stage, lane, invocation, lane["brief"], ledger_dir)
                 op_placeholder = "<op_id minted at dispatch>"
-                envelope = Path(ledger_dir) / "lanes" / lane["id"] / (
-                    "%s.%s.envelope.json" % (stage, op_placeholder)
+                envelope = orchestrator_state.oracle_for(
+                    str(ledger_dir), lane["id"], stage, op_placeholder, provider="claude"
                 )
-                marker = envelope.with_name("%s.%s.started" % (stage, op_placeholder))
+                marker = orchestrator_state.marker_for(
+                    str(ledger_dir), lane["id"], stage, op_placeholder, provider="claude"
+                )
                 wrapper = ["python3", str(WRAPPER_PATH), "--op-id", op_placeholder,
                            "--marker", str(marker), "--envelope", str(envelope), "--"] + claude
                 print("    %s: wrapper argv: %s" % (stage, _format_command(wrapper)))
@@ -878,11 +884,13 @@ def _print_dispatch_plan(plan, plan_path, plan_sha, lanes, gate_map, ledger_dir)
             if role:
                 artifact = "<stage artifact>"
                 print("    %s: lane-internal Codex runner argv SHAPE: %s" % (
-                    stage, _print_runner_shape(role, lane["repo"], run_id, artifact)))
+                    stage, _print_runner_shape(role, lane["worktree"], run_id, artifact)))
 
-        diff = Path(lane["worktree"]) / "<release-diff>"
         qa_op = "<op_id minted at dispatch>"
-        qa_state = Path(ledger_dir) / "qa" / qa_op
+        qa_state = Path(orchestrator_state.oracle_for(
+            str(ledger_dir), lane["id"], "qa-release-diff", qa_op, provider="codex"
+        ))
+        diff = qa_state / "release.diff"
         qa_prompt = HERE / "prompts" / "qa-release-diff-review.prompt.md"
         rendered_prompt = qa_prompt.read_text(encoding="utf-8").format(
             lane=lane["id"], branch=lane["branch"], diff_path=str(diff)
@@ -892,19 +900,21 @@ def _print_dispatch_plan(plan, plan_path, plan_sha, lanes, gate_map, ledger_dir)
                    "CODEX_EFFORT=%s" % CODEX_STAGE_TABLE["code-reviewer"]["effort"],
                    "CLODEX_INVOCATION_ID=%s" % qa_op,
                    "CLODEX_RUNNER_STATE_DIR=%s" % qa_state, "bash", str(RUNNER_PATH),
-                   "--role", "code-reviewer", "--repo", lane["repo"], "--run-id", run_id,
+                   "--role", "code-reviewer", "--repo", lane["worktree"], "--run-id", run_id,
                    "--prompt-file", str(rendered_prompt_path), "--input", str(diff), "--detach"]
         print("  ORCHESTRATOR-HELD QA")
         print("    release-diff: prompt rendered from %s for lane=%s branch=%s diff_path=%s; "
-              "live mode writes the rendered prompt to the ledger before dispatch" % (
+              "live mode writes the diff there before dispatch; live mode writes the "
+              "rendered prompt to the ledger before dispatch" % (
                   qa_prompt, lane["id"], lane["branch"], diff))
         if not rendered_prompt.strip():
             raise PlanRefusal("release-diff QA prompt rendered empty")
         print("    release-diff: exact run-codex.sh argv: %s" % _format_command(qa_argv))
         summary_prompt = HERE / "prompts" / "qa-morning-summary.prompt.md"
+        report_path = Path(ledger_dir) / ("MORNING-REPORT-%s.md" % plan["date"])
         summary_argv = _claude_argv(
             "qa-morning-summary", lane,
-            "Read the generated report at <report_path>; use template %s" % summary_prompt,
+            "Read the generated report at %s; use template %s" % (report_path, summary_prompt),
             lane["brief"], ledger_dir,
         )
         summary_wrapper = _qa_claude_wrapper_argv(

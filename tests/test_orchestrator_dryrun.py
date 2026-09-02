@@ -14,6 +14,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -84,7 +85,10 @@ class OrchestratorDryRunCheck(unittest.TestCase):
         self.assertIn("CLODEX_INVOCATION_ID=<op_id minted at dispatch>", output)
         self.assertIn("live mode writes the rendered prompt to the ledger before dispatch", output)
         self.assertIn("lane=finish branch=lane/finish", output)
-        self.assertIn("diff_path=/tmp/synthetic-lane-repo-worktrees/finish/<release-diff>", output)
+        self.assertIn(
+            "diff_path=%s" % (ledger / "qa" / "<op_id minted at dispatch>" / "release.diff"),
+            output,
+        )
         self.assertIn("GUARANTEED PARK: client-artifact (clodex-verify L385)", output)
         foundation = output.split("\nLANE foundation\n", 1)[1].split("\nLANE finish\n", 1)[0]
         finish = output.split("\nLANE finish\n", 1)[1]
@@ -381,6 +385,113 @@ class OrchestratorDryRunCheck(unittest.TestCase):
                                 capture_output=True, text=True, env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(sentinel.exists())
+
+    def _dryrun_output(self, ledger=None):
+        ledger = ledger or (self.root / "ledger")
+        with mock.patch("sys.stdout") as stdout:
+            self.assertEqual(
+                self.orchestrate.main([
+                    str(self.plan_path), "--ledger-dir", str(ledger)
+                ]),
+                0,
+            )
+        return "".join(call.args[0] for call in stdout.write.call_args_list if call.args)
+
+    @staticmethod
+    def _printed_argv_paths(output):
+        paths = {"marker": [], "envelope": [], "oracle_dir": []}
+        for line in output.splitlines():
+            if "argv: " not in line:
+                continue
+            argv = line.split("argv: ", 1)[1]
+            tokens = shlex.split(argv)
+            for flag in ("--marker", "--envelope"):
+                if flag in tokens:
+                    paths[flag[2:]].append(tokens[tokens.index(flag) + 1])
+            paths["oracle_dir"].extend(
+                token.split("=", 1)[1]
+                for token in tokens
+                if token.startswith("CLODEX_RUNNER_STATE_DIR=")
+            )
+        return paths
+
+    def test_exploit_printed_paths_derive_from_state_helpers(self):
+        suffix = ".SENTINEL7f"
+        oracle_calls = []
+        marker_calls = []
+
+        def sentinel_oracle(*args, **kwargs):
+            oracle_calls.append((args, kwargs))
+            return self.state.oracle_for(*args, **kwargs) + suffix
+
+        def sentinel_marker(*args, **kwargs):
+            marker_calls.append((args, kwargs))
+            return self.state.marker_for(*args, **kwargs) + suffix
+
+        with mock.patch.object(
+            self.orchestrate.orchestrator_state, "oracle_for", side_effect=sentinel_oracle
+        ), mock.patch.object(
+            self.orchestrate.orchestrator_state, "marker_for", side_effect=sentinel_marker
+        ):
+            output = self._dryrun_output()
+
+        printed_paths = self._printed_argv_paths(output)
+        for kind, values in printed_paths.items():
+            self.assertTrue(values, "no printed %s paths" % kind)
+            for value in values:
+                self.assertIn(suffix, value)
+
+        original_paths = {
+            self.state.oracle_for(*args, **kwargs)
+            for args, kwargs in oracle_calls
+        }
+        original_paths.update(
+            self.state.marker_for(*args, **kwargs)
+            for args, kwargs in marker_calls
+        )
+        for values in printed_paths.values():
+            for value in values:
+                self.assertNotIn(value, original_paths)
+
+    def test_control_qa_marker_matches_engine_marker_for(self):
+        ledger = self.root / "ledger"
+        output = self._dryrun_output(ledger)
+        expected = self.state.marker_for(
+            str(ledger), "foundation", "qa-morning-summary",
+            "<op_id minted at dispatch>", provider="claude"
+        )
+        qa_lines = [line for line in output.splitlines() if "morning-summary: wrapper argv:" in line]
+        self.assertEqual(len(qa_lines), 2)
+        for line in qa_lines:
+            tokens = shlex.split(line.split("argv: ", 1)[1])
+            self.assertEqual(tokens[tokens.index("--marker") + 1], expected)
+
+    def test_exploit_runner_repos_are_lane_worktrees(self):
+        output = self._dryrun_output()
+        repos = []
+        for line in output.splitlines():
+            if "run-codex.sh argv:" not in line and "runner argv SHAPE:" not in line:
+                continue
+            command = (line.split("SHAPE: ", 1)[1]
+                       if "runner argv SHAPE:" in line
+                       else line.split("argv: ", 1)[1])
+            tokens = shlex.split(command)
+            repos.append(tokens[tokens.index("--repo") + 1])
+        expected = {lane["worktree"] for lane in self.plan["lanes"]}
+        self.assertEqual(set(repos), expected)
+        self.assertEqual(len(repos), 6)
+        self.assertNotIn("/tmp/synthetic-lane-repo", repos)
+
+    def test_exploit_qa_inputs_are_concrete_ledger_paths(self):
+        ledger = self.root / "ledger"
+        output = self._dryrun_output(ledger)
+        self.assertNotIn("<release-diff>", output)
+        self.assertNotIn("<report_path>", output)
+        self.assertIn(
+            str(ledger / "qa" / "<op_id minted at dispatch>" / "release.diff"),
+            output,
+        )
+        self.assertIn(str(ledger / "MORNING-REPORT-2026-09-01.md"), output)
 
 
 if __name__ == "__main__":
