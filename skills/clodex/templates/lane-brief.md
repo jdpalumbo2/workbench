@@ -39,8 +39,20 @@ two extra merges because its prescribed base did not exist yet.
 
 ## 4. Scoped exceptions
 <Explicit, narrow releases from the rules above or from repo defaults —
-"you MAY renumber your migration to 010 if 008/009 are taken", "you MAY push
-your own feature branch". No exception listed = no exception.>
+"you MAY renumber your migration to 010 if 008/009 are taken". No exception
+listed = no exception.>
+
+<For a DISPATCHED lane (run under lane-orchestration), two structured entries
+belong here:
+MANDATE: this lane runs under the run-scoped mandate granted at run:opened
+(authorization_ref: <run-plan path>@<commit sha>; grants: finding-disposition,
+plan-approval, direction-approval). This line is informative — the approval
+EVENT in the lane's ledger is the authority, and every consumption reads
+by:"mandate". Blocker/high findings sit outside the mandate's practical reach:
+the orchestrator's gate parks a lane that auto-accepts one.
+PUSH: you MAY push exactly your own branch `<branch>` to `<remote>` — and
+nothing else — when (and only when) the run-plan sets push: true for this
+lane. Default is no push; main, tags, and every other ref stay forbidden.>
 
 ## 5. Required reading, section-precise
 <File → section, not whole documents: "docs/ARCHI.md §transport", "the
@@ -106,3 +118,13 @@ rebase/conflict log · contract-guardrail status · gate counts vs §12 baseline
 ids · what is still open for a human>. Use the lane-report template
 (`$CLODEX_HOME/templates/lane-report.md`); the report structure you are given
 here is the structure the merge gate reads, so treat it as an API.
+
+<Park protocol (dispatched lanes): a gate you cannot answer is a PARK, not a
+question. Stop and write PARKED-<lane>.md in the orchestrator's ledger dir
+with exactly five fields — **Gate:** (skill + line), **Question:** (one
+sentence, answerable yes/no or by choosing), **Options:** (2-3, each priced),
+**Blocked:** (what is not happening until answered), **Cost so far:**
+($ claude, % codex weekly, % codex 5h) — conspicuously useless if any is
+blank. A parked lane's report still opens with its run id and names the park
+record as its terminal state; a park is a question with a name on it, not a
+failure.>

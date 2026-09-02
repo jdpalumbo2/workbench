@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lane-orchestration/run-plan.schema.json",
+  "title": "Lane orchestration run plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["date", "mode", "budget", "lanes"],
+  "properties": {
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "mode": {"type": "string", "enum": ["unattended", "morning-approval"]},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codex_weekly_pct_ceiling",
+        "codex_5h_pct_ceiling",
+        "claude_usd_ceiling",
+        "per_lane_usd_ceiling"
+      ],
+      "properties": {
+        "codex_weekly_pct_ceiling": {"type": "number", "minimum": 0, "maximum": 100},
+        "codex_5h_pct_ceiling": {"type": "number", "minimum": 0, "maximum": 100},
+        "claude_usd_ceiling": {"type": "number", "minimum": 0},
+        "per_lane_usd_ceiling": {"type": "number", "minimum": 0}
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "repo",
+          "worktree",
+          "branch",
+          "base",
+          "brief",
+          "depends_on",
+          "claims",
+          "client_visible",
+          "direction_gate"
+        ],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+          "kind": {"type": "string", "enum": ["repo", "deliverable"]},
+          "repo": {"type": "string", "minLength": 1},
+          "worktree": {"type": "string", "minLength": 1},
+          "branch": {"type": "string", "minLength": 1},
+          "base": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "brief": {"type": "string", "minLength": 1},
+          "depends_on": {"type": "array", "items": {"type": "string"}},
+          "claims": {"type": "array", "items": {"type": "string"}},
+          "client_visible": {"type": "boolean"},
+          "direction_gate": {"type": "string", "enum": ["yes", "no"]},
+          "push": {"type": "boolean"},
+          "acceptance_ref": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

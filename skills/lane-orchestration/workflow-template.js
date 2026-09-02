@@ -1,4 +1,5 @@
-// Workflow script template for the opus-orchestration skill.
+// Workflow script template for the lane-orchestration skill (its wide-fan-out
+// variant; moved from opus-orchestration at the 2026-09-01 rename).
 // Ran in production 2026-08-04 (five-deliverable research build, 36 Opus agents, all gates passed).
 // API available inside scripts: agent(), parallel(), pipeline(), phase(title), log(), args, budget, workflow().
 // NOT available: bash(), Date.now(), Math.random(), filesystem. Shell work goes through an agent.
@@ -50,13 +51,15 @@ const VERDICT_SCHEMA = {
 const VERIFY_COMMON = 'You are an adversarial verifier. Your job is to find problems, not to approve. Default to reporting an issue when uncertain. A substantive issue is anything that could mislead the decision this document informs or violate a binding repo rule; everything else is minor. pass is false if any substantive issue exists.'
 
 // Convergence-safe fix loop: minimal-edit fixer with verify-before-writing, then a
-// reverify SCOPED to the edits (never a fresh full-document expedition). Two rounds max;
-// unresolved issues return to the main thread for judgment.
+// reverify SCOPED to the edits (never a fresh full-document expedition). Three rounds
+// max — the estate's one number, reconciled 2026-09-01 (clodex's cap, chosen because a
+// pilot's round 4 once caught silent data corruption); unresolved issues return to the
+// main thread for judgment.
 async function fixLoop(doc, initialIssues, evidenceNote, phaseLabel) {
   let allIssues = initialIssues
   let finalVerdict = null
   const rounds = []
-  for (let i = 0; i < 2 && allIssues.length > 0; i++) {
+  for (let i = 0; i < 3 && allIssues.length > 0; i++) {
     await agent([
       'You are making MINIMAL corrections to ' + doc + '. Everything not listed below is verified and must not be touched.',
       'Read the repo rule file(s) first, then the document sections around each issue.',
