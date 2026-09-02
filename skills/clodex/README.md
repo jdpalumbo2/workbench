@@ -121,6 +121,20 @@ which remains the standard this one is measured against; TRIP is this
 workflow's ancestor, and its Plan → Implement → Review → Test loop is what
 the stages above grew out of.
 
+The current contract is explicit at the seams. Verification uses exactly five
+evidence classes: `tests`, `real-data`, `live-check`, `visual`, and
+`client-artifact`. The shared runner records each declared input's hash at
+invocation start and an end observation when available in the result envelope;
+exact-input checks fail closed on a missing, malformed, partial, or legacy
+hash-less result, and the stage skills advance only on a valid `complete`
+envelope (their prose contract, not a reducer invariant). Each derivation or
+currency probe builds the inspected record and its fingerprint from one
+marker pass (derive and the later preflight check are separate probes); the
+VERSION-discipline test requires
+`skills/clodex/VERSION` to change with a changed clodex `SKILL.md`. Approval
+events carry an explicit attribution: run-scoped mandates can be granted when
+a run opens, bind to that run, and are revoked by a plan amendment.
+
 ## What it's good for
 
 - **Not memorizing stage names.** The workflow this replaces had ten stages;

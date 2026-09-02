@@ -51,6 +51,16 @@ that survives a dead session. It descends from the
 |---|---|
 | [clodex](skills/clodex/) | The whole pipeline: routing, staged `plan → build → verify → ship` execution, and the read-only audit lane. The five `clodex-*` stage skills install beside it; the full control-flow graph — actors, review loops, failure paths — lives in [its README](skills/clodex/README.md), for anyone who digs that deep |
 
+The pipeline's contract is deliberately inspectable: plans choose from five
+evidence classes (`tests`, `real-data`, `live-check`, `visual`,
+`client-artifact`), and Codex calls return runner-owned envelopes with input
+hashes from invocation start plus an end observation when available; legacy
+resumed inputs are marked unknown. The stage skills' contract advances a stage
+only on a valid `complete` envelope (a prose discipline, not a reducer
+invariant). First-use bootstrap data is checked against `skills/clodex/VERSION`,
+and delegated approvals are explicitly attributed — a run-scoped mandate binds
+to the run when it opens and is revoked by a plan amendment.
+
 ### Rigor
 
 Three skills, one discipline, three targets: `dialectical-review` attacks a

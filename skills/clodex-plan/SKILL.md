@@ -429,7 +429,28 @@ classes:
 `plan-approval`, and `direction-approval`. **Verification-debt acceptance and
 release authorization cannot be granted** — those gates open their modal in
 every run, mandate or not; they are the human-owned core the design reserves,
-and a mandate claiming them is ignored where those gates read it.
+and the engine refuses a mandate event claiming a grant outside the three at
+append time (it never enters the log).
+
+There is also a **run-scoped mandate** for a delegated run — granted AT RUN
+OPEN, before any plan exists, which is the only moment its shape is legal:
+once a plan is recorded, a new mandate binds to the current plan hash instead
+(the ordinary form above), and a run-bound mandate granted at open simply
+persists until an amendment revokes it. Append the same `scope: "mandate"` grant with
+`plan_hash: null` and `run` equal to the manifest run id. Use `by: "user"`, or
+`by: "orchestrator"` with `authorization_ref` in the form
+`<repo-relative-path>@<40-hex-commit-sha>`; that commit must contain the named
+artifact and be an ancestor of the run's `start_head`. The three grants above
+remain the whole vocabulary, and every plan amendment revokes this run-bound
+mandate.
+
+The engine requires a non-empty `by` on every new `approval:granted` and
+`plan:approved` event and enforces the attribution matrix: `user` is the human
+attribution; `mandate` consumes only standing plan or direction grants;
+`orchestrator` grants mandates only; and `ship` is for handoff only. Release
+authorization and non-empty accepted debt are user-attributed. A
+`finding:disposed` event may carry validated `by: "user"` or `"mandate"`;
+attribution-less accepted/rejected dispositions remain valid for compatibility.
 
 **Consult it before every modal it could cover.** A standing (un-revoked)
 mandate whose grants cover the gate: satisfy the gate on its authority, set
@@ -574,6 +595,14 @@ for f in env["findings"]:
     print(f["id"], f["severity"], "|", f["summary"], "|", f["location"])
 PY
 ```
+
+Here `sha256` is the invocation-START hash: the file's bytes when the round
+began — not proof of the bytes the model later opened, which the runner does
+not snapshot. Compare with `sha256_end` (the envelope-build observation):
+equal means the artifact did not change across the round's window; different
+shows an edit under review. A legacy resumed envelope carries
+`sha256: null` (and `hash_moment: "unknown"`), which is not an exact review —
+discard it and run a new round.
 
 `reviewed this exact plan: False` means the file changed under the reviewer.
 That round is stale — discard it and run a new one.
