@@ -367,6 +367,34 @@ class OrchestratorStateCheck(unittest.TestCase):
         self.assertEqual(leg["cost_usd"], 0.0)
         self.assertEqual(leg["outcome"], "failed")
 
+    def test_exploit_schema_refuses_out_of_range_ceilings_and_path_hostile_ids(self):
+        # r7-F001/F002: a negative or >100% ceiling silently disables quota
+        # enforcement; date and lane id become filesystem path components.
+        schema = json.loads(SCHEMA_PATH.read_text())
+        for key, bad in (
+            ("codex_weekly_pct_ceiling", -5),
+            ("codex_5h_pct_ceiling", 1000),
+            ("claude_usd_ceiling", -1),
+        ):
+            candidate = self.plan()
+            candidate["budget"][key] = bad
+            with self.subTest(field=key):
+                with self.assertRaises(self.state.OrchestratorStateError):
+                    self.state.validate(candidate, schema)
+        candidate = self.plan()
+        candidate["date"] = "../2026-09-01"
+        with self.assertRaises(self.state.OrchestratorStateError):
+            self.state.validate(candidate, schema)
+        candidate = self.plan()
+        candidate["lanes"][0]["id"] = "a/../b"
+        with self.assertRaises(self.state.OrchestratorStateError):
+            self.state.validate(candidate, schema)
+
+    def test_control_unpark_refuses_a_path_hostile_lane_id(self):
+        self.open()
+        with self.assertRaises(self.state.OrchestratorStateError):
+            self.state.unpark(self.ledger, "../evil", "answer", record_sha="0" * 64)
+
     def test_exploit_schema_requires_hex_sha_base(self):
         # b2r1-F008: base is a 40-hex sha, not any string.
         schema = json.loads(SCHEMA_PATH.read_text())

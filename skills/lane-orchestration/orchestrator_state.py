@@ -220,6 +220,8 @@ def validate(value, schema, path="$"):
             raise OrchestratorStateError("%s: string does not match required pattern" % path)
     if "minimum" in schema and isinstance(value, (int, float)) and value < schema["minimum"]:
         raise OrchestratorStateError("%s: number is below %s" % (path, schema["minimum"]))
+    if "maximum" in schema and isinstance(value, (int, float)) and value > schema["maximum"]:
+        raise OrchestratorStateError("%s: number is above %s" % (path, schema["maximum"]))
     if isinstance(value, dict):
         for key in schema.get("required", []):
             if key not in value:
@@ -1579,6 +1581,7 @@ def unpark(ledger_dir, lane, answer_text, record_path=None, record_sha=None):
     answer to the file bytes, so a later edit cannot masquerade as the answer
     that reopened the lane.
     """
+    lane = _safe_component(lane, "lane")
     if record_sha is None:
         if not record_path:
             raise OrchestratorStateError("unpark needs the park record path or its sha")

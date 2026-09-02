@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["date", "mode", "budget", "lanes"],
   "properties": {
-    "date": {"type": "string", "minLength": 1},
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
     "mode": {"type": "string", "enum": ["unattended", "morning-approval"]},
     "budget": {
       "type": "object",
@@ -18,10 +18,10 @@
         "per_lane_usd_ceiling"
       ],
       "properties": {
-        "codex_weekly_pct_ceiling": {"type": "number"},
-        "codex_5h_pct_ceiling": {"type": "number"},
-        "claude_usd_ceiling": {"type": "number"},
-        "per_lane_usd_ceiling": {"type": "number"}
+        "codex_weekly_pct_ceiling": {"type": "number", "minimum": 0, "maximum": 100},
+        "codex_5h_pct_ceiling": {"type": "number", "minimum": 0, "maximum": 100},
+        "claude_usd_ceiling": {"type": "number", "minimum": 0},
+        "per_lane_usd_ceiling": {"type": "number", "minimum": 0}
       }
     },
     "lanes": {
@@ -44,7 +44,7 @@
           "direction_gate"
         ],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
           "kind": {"type": "string", "enum": ["repo", "deliverable"]},
           "repo": {"type": "string", "minLength": 1},
           "worktree": {"type": "string", "minLength": 1},
