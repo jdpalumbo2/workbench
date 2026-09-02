@@ -104,6 +104,7 @@
           "detail": {"type": ["string", "null"], "description": "Why it is wrong and what it breaks, verbatim from the envelope."},
           "recommendation": {"type": ["string", "null"]},
           "note": {"type": ["string", "null"], "description": "The disposition's grounds, from finding:disposed. The event log remains authoritative; this is the copy the gating reader needs."},
+          "disposition_by": {"type": ["string", "null"], "description": "Optional attribution copied from finding:disposed when supplied; absent on historical attribution-less dispositions."},
           "round": {"type": ["integer", "null"]},
           "invocation": {"type": ["string", "null"], "description": "The `invocations[].invocation_id` that raised it."},
           "plan_hash": {"type": ["string", "null"], "description": "The plan version it was raised against."}
@@ -201,7 +202,9 @@
           "scope": {"type": "string"},
           "by": {"type": "string"},
           "plan_version": {"type": ["integer", "null"]},
-          "plan_hash": {"type": "string", "description": "The plan hash that was current when this approval was granted; approving a superseded hash is refused. Never null — an approval bound to nothing could never be revoked by an amendment. Consequence a consumer can rely on: an approval with revoked == null is bound to the run's current plan.hash."},
+          "plan_hash": {"type": ["string", "null"], "description": "The plan hash that was current when this approval was granted; approving a superseded hash is refused. Null occurs only on a run-bound mandate recorded before a plan exists. Consequence a consumer can rely on: an approval with revoked == null is bound to the run's current plan.hash, except for that run-bound mandate."},
+          "run": {"type": ["string", "null"], "description": "Optional run binding for a pre-plan run-bound mandate."},
+          "authorization_ref": {"type": ["string", "null"], "description": "Optional committed-artifact provenance reference for an orchestrator-attributed mandate."},
           "actions": {
             "type": "array",
             "description": "The exact external actions authorized.",

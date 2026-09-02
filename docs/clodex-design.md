@@ -24,8 +24,8 @@ before implementation.
    or an explicit `not-deployed` boundary is recorded.
 4. **Evidence classes are declared at plan time.** Offline-green suites missed
    operational defects repeatedly. Each plan declares what proof done requires
-   (tests / real data / live check / visual), and deferred evidence is recorded
-   as verification debt, never prose.
+   (`tests` / `real-data` / `live-check` / `visual` / `client-artifact`), and deferred
+   evidence is recorded as verification debt, never prose.
 5. **Durable state, structured events.** Every run has a manifest file.
    Stage transitions are recorded as events, never reconstructed from
    transcript strings. Cross-session and orchestrator/worker handoffs read the
@@ -189,11 +189,15 @@ after interruption (including quota stalls — record checkpoint, surface a
 one-command resume).
 
 Every role invocation returns a **result envelope** (versioned JSON): invocation
-ID, role, status (`complete` / `partial` / `failed` / `interrupted`), hashes of
-the input artifacts it reviewed, findings with IDs, exit metadata, and paths to
-full output. Stages transition only on a valid `complete` envelope — a missing,
-malformed, or partial envelope fails closed and the stage surfaces it rather
-than inferring success from prose.
+ID, role, status (`complete` / `partial` / `failed` / `interrupted`), each new
+input record's artifact hash at invocation start plus an end observation taken
+while the envelope is built, findings with IDs, exit metadata, and paths to full
+output. A legacy resumed input carries a null start hash and unknown hash
+moment, so exact-input checks fail closed; the stage skills' contract is to
+transition only on a valid `complete` envelope — a missing, malformed, or
+partial envelope fails closed and the stage surfaces it rather than inferring
+success from prose (a skill-layer discipline; the reducer enforces stage
+monotonicity, not envelope validity).
 
 ## Human-owned decisions (never automated)
 
@@ -204,7 +208,8 @@ sends · overriding unresolved review findings.
 
 *(Amended 2026-08-16, v0.2 — the typed-mandate carve-out.)* A delegated run
 may carry a **typed mandate** (`approval:granted`, `scope: "mandate"`,
-plan-hash-bound; `clodex-plan` §6): the user pre-grants, once and in writing,
+bound to the current plan hash when granted after a plan exists;
+`clodex-plan` §6): the user pre-grants, once and in writing,
 exactly these gate classes — finding dispositions (accept/reject with
 grounds) and plan/direction approval. The mandate is the user exercising
 those decisions in advance, not the system taking them; every consumption
@@ -213,6 +218,15 @@ every plan amendment revokes it. **Explicitly outside any mandate, forever:
 verification-debt acceptance and release authorization.** Those two stay
 human at the gate in every run — they are the list above's core, and the
 carve-out does not touch them.
+
+*(Amended 2026-09-01, v0.2 — the run-scoped variant.)* A mandate may also be
+granted at run open, before a plan exists, with `scope: "mandate"`,
+`plan_hash: null`, and `run` bound to the manifest's run id. Its `by` is
+`"user"` or `"orchestrator"`; the latter requires an
+`authorization_ref` of `<repo-relative-path>@<40-hex-commit-sha>` that resolves
+to an artifact in a commit ancestor of the run's `start_head`. It grants only
+`finding-disposition`, `plan-approval`, and `direction-approval`, and a plan
+amendment revokes the run-bound mandate.
 
 ## Deferred to v0.2 (deliberately)
 

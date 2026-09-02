@@ -175,10 +175,11 @@ what would fix it, and wait for the user. When they say it is fixed, **resume
 from that check** — re-run it and continue down the list. Do not silently re-run
 the checks that already passed, and do not skip the ones after it.
 
-**Order on a first run:** checks 4 and 6 read the profile, which does not exist
-yet. Do checks 1–3 and 5, run the interview (§3), then come back and finish 4
-and 6. A first run also has no `.clodex/` directory, so §2 finds nothing and
-costs one `ls`.
+**Order on a first run:** checks 4, 6, and 7 read the profile, which does not
+exist yet. Do checks 1–3 and 5, run the interview (§3), then come back and
+finish 4, 6, and 7. Check 7 also self-defers when the profile is missing. A
+first run also has no `.clodex/` directory, so §2 finds nothing and costs one
+`ls`.
 
 1. **Repo root.** `git rev-parse --show-toplevel`. Not inside a work tree → stop
    and ask where the work lives. Also note the branch: `git rev-parse
@@ -270,7 +271,20 @@ costs one `ls`.
    printenv "$NAME" >/dev/null || echo "missing credential: $NAME"
    ```
    Names only. Never print, echo, log, or write a credential value.
-7. **Bootstrap (worktree lanes only).** When this checkout is a linked
+7. **Bootstrap currency.** Every checkout runs the bootstrap currency check:
+   ```bash
+   python3 "$CLODEX_HOME/state/bootstrap_check.py" "$REPO" "$CLODEX_HOME"
+   ```
+   It answers the six bootstrap questions in order, one line each: a missing
+   profile is `first-run — defer to §3`; a schema-version mismatch is
+   `re-derive`; a clodex minor-version mismatch is `re-derive` (or recorded in
+   a worktree); a fingerprint mismatch is `re-derive` in the main checkout (or
+   recorded in a worktree); an incomplete or unknown-key bootstrap is
+   `re-derive`; and a linked-worktree profile that is not tracked is `stop`.
+   A current profile passes with exit 0. Worktree drift is recorded, not
+   enforced, except for that tracked-profile stop.
+
+   When this checkout is a linked
    worktree — `git rev-parse --git-dir` differs from `git rev-parse
    --git-common-dir` — first-run setup must already be **committed**, never
    re-created here:
@@ -283,8 +297,10 @@ costs one `ls`.
    contradictory profiles, and merge order silently picked the winner — every
    later lane inherited answers nobody chose. The fix is the bootstrap ritual
    (§3), run once from the main checkout on the default branch before lanes
-   fork; tell the user that, and wait. In the main checkout this check is a
-   no-op — §3 handles the first run there.
+   fork; tell the user that, and wait. In the main checkout the tracked-file
+   probe alone is skipped — every currency question above still runs there,
+   and the main checkout is exactly where a `re-derive` verdict is enforced
+   rather than merely recorded.
 8. **Claims (when `.clodex/claims.json` exists).** The shared-claims ledger:
    collision-prone resources — migration numbers, ports, workflow ids,
    property names — claimed for the repo's concurrent lanes. **Orchestrator-
@@ -485,29 +501,38 @@ It checks types, required fields, and enums. It does **not** check
 malformed action id, and an action with an empty `argv` all survive it. Read the
 file yourself as well.
 
-Two things send you back to the user: a **missing** key the schema requires, and
-a **stale** profile — one whose `schema_version` is not the version
-`profile.schema.json` accepts, which is the only mechanical signal that the
-contract moved. Ask for just those keys and rewrite **only** those keys.
-Non-destructive: never regenerate the file wholesale, never drop `notes`.
+The profile step has one shared re-derive procedure with two entry points:
+**first-run** when the profile does not exist, and **re-derive** when check 7
+reports contract moved, skill moved, fingerprint moved, or a missing,
+incomplete, or unknown-key bootstrap. First-run and re-derive are the same
+procedure; first-run compares inspected reality with nothing, while re-derive
+compares it with the recorded profile. Never partially repair only a few keys,
+and never re-derive from a lane.
 
-**It does not exist** → first-run interview:
-
-1. **Inspect before asking.** Anything you can read, do not ask about:
+1. **Inspect before asking.** Anything you can read, do not ask about. Run the
+   full probe from the repository root:
    ```bash
-   ls; sed -n '1,60p' package.json 2>/dev/null      # scripts, engines, version
-   ls Makefile pyproject.toml tox.ini vercel.json railway.json fly.toml Dockerfile 2>/dev/null
-   ls .github/workflows docs 2>/dev/null
-   cat .nvmrc .tool-versions .python-version 2>/dev/null   # pinned runtimes
-   git tag --sort=-v:refname | head -5
-   git symbolic-ref --short "refs/remotes/${REMOTE:-origin}/HEAD" 2>/dev/null
+   python3 "$CLODEX_HOME/state/inspect_repo.py" "$REPO"
    ```
-   **Fill in `runtimes` and `commands.install` here** — preflight check 4 loops
-   over `runtimes`, so a profile without it makes that check a permanent no-op.
-   `package.json` `engines`, `.nvmrc`, `.tool-versions`, and `pyproject.toml`
-   `requires-python` give you `command` and `min_version` without asking anyone.
-2. **Ask once, in one message**, only what inspection cannot settle or what is a
-   decision rather than a fact: confirm the build/test/lint/typecheck commands
+   Use the emitted inspection artifact and bootstrap values for the next steps.
+   Print the field-by-field diff of inspected reality versus the recorded
+   profile (first run: versus nothing). Ask only about disagreements and newly
+   required fields, in one message. Preserve everything inspection cannot
+   settle — the branch rule, tag format, actions, and `notes`.
+   Fill in `runtimes` and `commands.install` from the inspection; the probe's
+   "interview aids" section carries the values the markers alone do not — pin
+   file contents, recent tags, the default branch, the package version — so
+   these fields come from reading, not asking. `package.json` `engines`,
+   `.nvmrc`, `.tool-versions`, and `pyproject.toml` `requires-python` give you
+   `command` and `min_version` without asking anyone.
+
+2. **Ask once, in one message.** On a FIRST RUN that message confirms the full
+   set below. On a RE-DERIVE it contains only step 1's disagreements and newly
+   required fields — a settled decision the diff does not contradict (branch
+   rule, tag format, actions, deploy, evidence defaults) is preserved
+   silently, never re-opened; a routine currency re-derive that re-interviews
+   the whole profile is this procedure done wrong. The full first-run set:
+   confirm the build/test/lint/typecheck commands
    (`null` where the repo genuinely has none — an omitted gate gets silently
    skipped at verify) and the runtimes you inferred; version source; branch rule
    and tag format; changelog path; architecture docs and where plans go; deploy
@@ -530,11 +555,12 @@ Non-destructive: never regenerate the file wholesale, never drop `notes`.
      a host and project auto-deploying on push to the default branch, a manual
      command listed in `actions`, something external, or nothing at all
      (`deploy: null` — ship then closes at an explicit not-deployed boundary).
-   - **Evidence classes** — the four kinds of proof a plan can require;
+   - **Evidence classes** — the five kinds of proof a plan can require;
      `evidence.default_classes` is which of them this repo expects by default:
      `tests` (automated suites), `real-data` (run against production-shaped
      input), `live-check` (the deployed thing observed working), `visual`
-     (rendered output reviewed). `clodex-plan` owns the per-plan detail.
+     (rendered output reviewed), `client-artifact` (the artifact a client
+     receives, read from their side). `clodex-plan` owns the per-plan detail.
 3. **Action policy is structured, per action.** Every entry in `actions` carries
    a literal `argv` and a `policy`:
    - `auto-with-authorization` — may run once it is covered by the single
@@ -565,7 +591,9 @@ Non-destructive: never regenerate the file wholesale, never drop `notes`.
    never values, and `[]` when it needs none. The same repo would mark a
    production deploy `always-ask-exact`, so its literal filled argv is shown for
    approval on every release.
-4. **Write, validate, commit.** Write every required key — the schema requires
+4. **Write, validate, commit.** Write every required key and include the
+   `bootstrap` block emitted by `inspect_repo.py`, setting
+   `clodex_version` from `$CLODEX_HOME/VERSION` — the schema requires
    `runtimes` and `required_env` (use `[]` for "none", never omit them) and every
    key of `commands` including `install`, precisely so preflight checks 4 and 6
    have something to check. Re-run the validator above, then commit **by
@@ -592,21 +620,18 @@ Field-by-field contract: `$CLODEX_HOME/profile.schema.json`.
 
 ### Bootstrap — multi-lane repos: once, before lanes fork
 
-A repo that will run parallel lanes in worktrees gets its first-run setup as
-**one commit, on the default branch, from the main checkout, before any lane
-forks**: the interview above, the profile, and the nested `.clodex/.gitignore`
-(§1 check 3). The router never checks branches out — when the main checkout is
-not on the default branch, the commit is the user's to make there (or via
-`git -C <main-checkout>` once it is), and the bootstrap waits until it exists.
-A bootstrap that rides a feature branch rides **merge order**, which is the
-failure this ritual kills: two lanes once interviewed independently six
-minutes apart, produced contradictory profiles, and wall-clock picked the
-winner — a push-policy divergence between two lanes of the same weekend traced
-straight to it. Once the bootstrap commit exists, every lane's preflight
-**requires** it (§1 check 7) and no lane ever interviews. A repo whose lanes
-contend for numbered or named resources also bootstraps the claims ledger —
-an empty `{"claims": []}` in `.clodex/claims.json`, committed the same way;
-the orchestrator alone writes to it thereafter (§1 check 8).
+A repo that will run parallel lanes in worktrees gets the shared first-run or
+re-derive procedure's resulting setup as **one commit, on the default branch,
+from the main checkout, before any lane forks**: the profile with its emitted
+`bootstrap` block and the nested `.clodex/.gitignore` (§1 check 3). The router
+never checks branches out — when the main checkout is not on the default
+branch, the commit is the user's to make there (or via `git -C
+<main-checkout>` once it is), and the bootstrap waits until it exists. Once the
+bootstrap commit exists, every lane's preflight **requires** it (§1 check 7)
+and no lane ever interviews or re-derives. A repo whose lanes contend for
+numbered or named resources also bootstraps the claims ledger — an empty
+`{"claims": []}` in `.clodex/claims.json`, committed the same way; the
+orchestrator alone writes to it thereafter (§1 check 8).
 
 ---
 

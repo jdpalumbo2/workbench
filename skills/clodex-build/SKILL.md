@@ -958,7 +958,10 @@ if not live:
     blockers.append("no standing plan approval on the current plan hash")
 
 # A re-review leaves no event, so the evidence is the envelope: complete, that
-# role, hashing the CURRENT plan file.
+# role, hashing the CURRENT plan file. `want` can be None (plan file absent)
+# and an envelope input's sha256 can be null (a legacy resumed invocation
+# whose start hash is unknowable) — neither may count as evidence, or
+# None == None marks a role evidenced by an envelope that proved nothing.
 plan_path = snap["plan"]["path"]
 want = (hashlib.sha256(open(plan_path, "rb").read()).hexdigest()
         if plan_path and os.path.exists(plan_path) else None)
@@ -967,7 +970,9 @@ ran = set()
 for path in sorted(glob.glob(os.path.join(runner_state, "*", "*.envelope.json"))
                    + glob.glob(os.path.join(runner_state, "*", "*", "*.envelope.json"))):
     env = json.load(open(path))
-    if env["status"] == "complete" and any(i["sha256"] == want for i in env["inputs"]):
+    if (want is not None and env["status"] == "complete"
+            and any(i.get("sha256") is not None and i["sha256"] == want
+                    for i in env["inputs"])):
         ran.add(env["role"])
 declared = [r for a in snap["plan"]["amendments"] for r in a["required_review"]]
 print("declared re-reviews:", declared or "(none)", "| evidenced:", sorted(ran) or "(none)")

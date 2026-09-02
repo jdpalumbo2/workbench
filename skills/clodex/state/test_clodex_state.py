@@ -345,7 +345,7 @@ class ReducerTests(StateTestCase):
         for event in [{"e": "run:opened"},
                       {"e": "stage:plan:entered"},
                       {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-                      {"e": "plan:approved"}]:
+                      {"e": "plan:approved", "by": "user"}]:
             append_event(self.run_dir, event)
         self.assertEqual(rebuild(self.run_dir), rebuild(self.run_dir))
 
@@ -424,7 +424,7 @@ class ReducerTests(StateTestCase):
         self.assert_last_event_refused(
             {"e": "run:opened"},
             {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-            {"e": "plan:approved", "plan_hash": "not-a-real-hash"},
+            {"e": "plan:approved", "by": "user", "plan_hash": "not-a-real-hash"},
         )
 
     def test_approval_against_a_superseded_hash_is_refused(self):
@@ -435,9 +435,9 @@ class ReducerTests(StateTestCase):
         self.assert_last_event_refused(
             {"e": "run:opened"},
             {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-            {"e": "plan:approved"},
+            {"e": "plan:approved", "by": "user"},
             {"e": "plan:amended", "version": 2, "hash": "h2", "note": "scope change"},
-            {"e": "approval:granted", "scope": "release-authorization", "plan_hash": "h1"},
+            {"e": "approval:granted", "scope": "release-authorization", "by": "user", "plan_hash": "h1"},
         )
 
         # The approval granted *before* the amendment is untouched by this
@@ -447,7 +447,7 @@ class ReducerTests(StateTestCase):
         self.assertEqual(approvals[0]["revoked"]["superseding_hash"], "h2")
 
         # An approval against the new hash is still legal.
-        append_event(self.run_dir, {"e": "approval:granted", "scope": "release-authorization"})
+        append_event(self.run_dir, {"e": "approval:granted", "scope": "release-authorization", "by": "user"})
         live = [a for a in rebuild(self.run_dir)["approvals"] if a["revoked"] is None]
         self.assertEqual([a["plan_hash"] for a in live], ["h2"])
 
@@ -459,11 +459,11 @@ class ReducerTests(StateTestCase):
         self.append_all(
             {"e": "run:opened"},
             {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-            {"e": "plan:approved"},
+            {"e": "plan:approved", "by": "user"},
             {"e": "plan:amended", "version": 2, "hash": "h2"},
-            {"e": "approval:granted", "scope": "release-authorization"},
+            {"e": "approval:granted", "scope": "release-authorization", "by": "user"},
             {"e": "plan:amended", "version": 3, "hash": "h3"},
-            {"e": "plan:approved"},
+            {"e": "plan:approved", "by": "user"},
         )
         snap = rebuild(self.run_dir)
         self.assertEqual(snap["plan"]["hash"], "h3")
@@ -476,7 +476,7 @@ class ReducerTests(StateTestCase):
 
     def test_approval_bound_to_no_plan_is_refused(self):
         # An approval with no plan hash could never be revoked by an amendment.
-        self.assert_last_event_refused({"e": "run:opened"}, {"e": "plan:approved"})
+        self.assert_last_event_refused({"e": "run:opened"}, {"e": "plan:approved", "by": "user"})
 
     def test_approval_binds_to_the_current_plan_hash(self):
         self.append_all(
@@ -495,7 +495,7 @@ class ReducerTests(StateTestCase):
         self.append_all(
             {"e": "run:opened"},
             {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-            {"e": "plan:approved"},
+            {"e": "plan:approved", "by": "user"},
             {"e": "plan:amended", "version": 2, "hash": "h2", "note": "scope change"},
         )
         snap = rebuild(self.run_dir)
@@ -514,7 +514,7 @@ class ReducerTests(StateTestCase):
         self.assertEqual(revoked["seq"], 4)
 
         # An approval granted against the new hash stands.
-        append_event(self.run_dir, {"e": "approval:granted", "scope": "release-authorization"})
+        append_event(self.run_dir, {"e": "approval:granted", "scope": "release-authorization", "by": "user"})
         approvals = rebuild(self.run_dir)["approvals"]
         self.assertEqual([a["revoked"] is None for a in approvals], [False, True])
 
@@ -530,7 +530,7 @@ class ReducerTests(StateTestCase):
         self.assert_last_event_refused(
             {"e": "run:opened"},
             {"e": "plan:recorded", "version": 1, "path": "docs/plans/x.md", "hash": "h1"},
-            {"e": "plan:approved"},
+            {"e": "plan:approved", "by": "user"},
             {"e": "plan:amended", "version": 2, "hash": "h1"},
         )
 
