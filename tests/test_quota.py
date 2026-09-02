@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Exploit/control checks for the lane-orchestration quota meter."""
+"""Exploit/control checks for the standalone Codex/Claude quota meter (quota.py).
+
+Kept from the retired lane-orchestration skill; the meter is useful on its own for
+checking Codex weekly headroom before a Codex-heavy clodex run."""
 
 import contextlib
 import importlib.util
@@ -18,7 +21,7 @@ from unittest import mock
 
 
 CATALOGUE = Path(__file__).resolve().parent.parent
-QUOTA = CATALOGUE / "skills" / "lane-orchestration" / "quota.py"
+QUOTA = CATALOGUE / "skills" / "clodex" / "state" / "quota.py"
 
 
 def load_quota():
