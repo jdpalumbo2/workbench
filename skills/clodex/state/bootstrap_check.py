@@ -90,6 +90,18 @@ def _rederive(number, detail):
     return 1
 
 
+def _record(number, detail):
+    """A currency drift that is recorded for visibility but never enforced.
+
+    Johnny's 2026-09-02 ruling: the re-derive tax scaled by repos x releases
+    outweighed its value.  Skill-version, fingerprint, and bootstrap-block drift
+    (checks 3-5) now record and continue in every checkout.  The only hard stops
+    left are a structurally unusable profile (check 2) and a linked worktree
+    whose profile is untracked (check 6).
+    """
+    _verdict(number, "recorded", detail)
+
+
 def _exact_keys(value, approved, label):
     if not isinstance(value, dict):
         return f"{label} is not an object"
@@ -185,63 +197,67 @@ def check(repo, clodex_home):
         return _rederive(2, f"contract-moved — schema_version {schema_version!r} is outside the schema enum")
     _verdict(2, "current", f"schema_version {schema_version}")
 
+    # Checks 3-5 are currency drift: recorded for visibility, never enforced
+    # (see _record).  They read the bootstrap block but can no longer stop the
+    # run, so each guards its own inputs and records "unchecked" when the block
+    # is absent rather than returning early.
     bootstrap = profile.get("bootstrap")
+    bootstrap_usable = isinstance(bootstrap, dict)
+
+    # Check 3 - skill (MAJOR.MINOR) currency.
+    recorded_version = (
+        _version_value(bootstrap["clodex_version"])
+        if bootstrap_usable and isinstance(bootstrap.get("clodex_version"), str)
+        else None
+    )
+    if bootstrap_usable and isinstance(bootstrap.get("clodex_version"), str):
+        current_version = _version(clodex_home / "VERSION")
+        if recorded_version is None or current_version is None:
+            _record(3, "skill-moved — an invalid bootstrap or VERSION semver (not enforced)")
+        elif recorded_version[1:3] != current_version[1:3]:
+            # (MAJOR, MINOR) pair: patch-insensitive, but a MAJOR move is never
+            # "the same minor" — 1.4.0 against 0.4.0 is incompatible drift.
+            _record(
+                3,
+                f"skill-moved — recorded {recorded_version[0]}, "
+                f"current {current_version[0]} (not enforced)",
+            )
+        else:
+            _verdict(3, "current", f"skill major.minor {current_version[1]}.{current_version[2]}")
+    else:
+        _record(3, "skill currency unchecked — bootstrap.clodex_version absent (not enforced)")
+
+    # Check 4 - repo fingerprint currency.  inspect_repo derives both results
+    # from its one MARKERS pass, and this checker never implements a second probe.
+    fingerprint = bootstrap.get("repo_fingerprint") if bootstrap_usable else None
+    if isinstance(fingerprint, str) and FINGERPRINT.fullmatch(fingerprint):
+        _recomputed_inspected, current_fingerprint = inspect_repo.probe(repo)
+        if fingerprint != current_fingerprint:
+            _record(
+                4,
+                f"repo-moved — recorded {fingerprint}, "
+                f"current {current_fingerprint} (not enforced)",
+            )
+        else:
+            _verdict(4, "current", "repo fingerprint")
+    else:
+        _record(4, "repo currency unchecked — bootstrap.repo_fingerprint absent or malformed (not enforced)")
+
+    # Check 5 - bootstrap block structure and inspected coverage.
     if bootstrap is None:
-        return _rederive(5, "bootstrap missing")
-    if not isinstance(bootstrap, dict):
-        return _rederive(5, "bootstrap is not an object")
-
-    # Keep structural problems that do not prevent the currency comparisons
-    # until question 5.  In particular, an extra bootstrap key must not hide
-    # the required skill-before-fingerprint ordering.
-    root_problem = _exact_keys(bootstrap, BOOTSTRAP_KEYS, "bootstrap")
-    if "clodex_version" not in bootstrap:
-        return _rederive(5, root_problem or "missing key 'clodex_version' in bootstrap")
-
-    recorded_version = _version_value(bootstrap["clodex_version"])
-    current_version = _version(clodex_home / "VERSION")
-    if recorded_version is None or current_version is None:
-        return _rederive(3, "skill-moved — an invalid bootstrap or VERSION semver")
-    # Compare the (MAJOR, MINOR) pair: patch-insensitive, but a MAJOR move is
-    # never "the same minor" — 1.4.0 against 0.4.0 is incompatible drift.
-    if recorded_version[1:3] != current_version[1:3]:
-        detail = (
-            f"skill-moved — recorded {recorded_version[0]}, current {current_version[0]}"
-        )
-        if worktree:
-            _verdict(3, "recorded", detail + " (worktree; not enforced)")
-        else:
-            return _rederive(3, detail)
+        _record(5, "bootstrap missing (not enforced)")
+    elif not bootstrap_usable:
+        _record(5, "bootstrap is not an object (not enforced)")
     else:
-        _verdict(3, "current", f"skill major.minor {current_version[1]}.{current_version[2]}")
-
-    if "repo_fingerprint" not in bootstrap:
-        return _rederive(5, root_problem or "missing key 'repo_fingerprint' in bootstrap")
-    if not isinstance(bootstrap["repo_fingerprint"], str):
-        return _rederive(4, "repo-moved — bootstrap.repo_fingerprint is not a string")
-    if not FINGERPRINT.fullmatch(bootstrap["repo_fingerprint"]):
-        return _rederive(4, "repo-moved — bootstrap.repo_fingerprint is not sha256:<64 lowercase hex>")
-
-    # This is the sole recompute.  inspect_repo derives both results from its
-    # one MARKERS pass, and this checker never implements a second probe.
-    _recomputed_inspected, current_fingerprint = inspect_repo.probe(repo)
-    if bootstrap["repo_fingerprint"] != current_fingerprint:
-        detail = (
-            f"repo-moved — recorded {bootstrap['repo_fingerprint']}, "
-            f"current {current_fingerprint}"
-        )
-        if worktree:
-            _verdict(4, "recorded", detail + " (worktree; not enforced)")
+        problem = _check_bootstrap(bootstrap)
+        if problem:
+            _record(5, f"{problem} (not enforced)")
         else:
-            return _rederive(4, detail)
-    else:
-        _verdict(4, "current", "repo fingerprint")
+            _verdict(5, "current", "bootstrap inspected coverage")
 
-    problem = _check_bootstrap(bootstrap)
-    if problem:
-        return _rederive(5, problem)
-    _verdict(5, "current", "bootstrap inspected coverage")
-
+    # Check 6 - the ONE remaining hard stop: a linked worktree whose profile is
+    # not tracked cannot inherit committed bootstrap, and a lane must never
+    # interview (§1/§3).  This stop is deliberately kept.
     if worktree:
         tracked = _git(repo, "ls-files", "--error-unmatch", ".clodex/profile.json")
         if tracked.returncode != 0:

@@ -276,13 +276,16 @@ first run also has no `.clodex/` directory, so §2 finds nothing and costs one
    python3 "$CLODEX_HOME/state/bootstrap_check.py" "$REPO" "$CLODEX_HOME"
    ```
    It answers the six bootstrap questions in order, one line each: a missing
-   profile is `first-run — defer to §3`; a schema-version mismatch is
-   `re-derive`; a clodex minor-version mismatch is `re-derive` (or recorded in
-   a worktree); a fingerprint mismatch is `re-derive` in the main checkout (or
-   recorded in a worktree); an incomplete or unknown-key bootstrap is
-   `re-derive`; and a linked-worktree profile that is not tracked is `stop`.
-   A current profile passes with exit 0. Worktree drift is recorded, not
-   enforced, except for that tracked-profile stop.
+   profile is `first-run — defer to §3`; a schema-version mismatch (or a
+   profile that is not loadable JSON) is `re-derive`; a clodex minor-version
+   mismatch, a fingerprint mismatch, and an incomplete, missing, or
+   unknown-key bootstrap are each `recorded` in **every** checkout, never
+   enforced (Johnny's 2026-09-02 ruling — the re-derive tax scaled by repos ×
+   releases outweighed its value); and a linked-worktree profile that is not
+   tracked is `stop`. A current profile passes with exit 0, and so does one
+   carrying only recorded currency drift. The only two hard stops left are a
+   structurally unusable profile (schema/JSON) and that untracked-worktree
+   profile.
 
    When this checkout is a linked
    worktree — `git rev-parse --git-dir` differs from `git rev-parse
@@ -298,9 +301,9 @@ first run also has no `.clodex/` directory, so §2 finds nothing and costs one
    later lane inherited answers nobody chose. The fix is the bootstrap ritual
    (§3), run once from the main checkout on the default branch before lanes
    fork; tell the user that, and wait. In the main checkout the tracked-file
-   probe alone is skipped — every currency question above still runs there,
-   and the main checkout is exactly where a `re-derive` verdict is enforced
-   rather than merely recorded.
+   probe alone is skipped — every currency question above still runs there and
+   prints its verdict, but currency drift only ever `recorded`s; the sole
+   verdict the main checkout still enforces is `contract-moved` (schema/JSON).
 8. **Claims (when `.clodex/claims.json` exists).** The shared-claims ledger:
    collision-prone resources — migration numbers, ports, workflow ids,
    property names — claimed for the repo's concurrent lanes. **Orchestrator-
@@ -503,8 +506,10 @@ file yourself as well.
 
 The profile step has one shared re-derive procedure with two entry points:
 **first-run** when the profile does not exist, and **re-derive** when check 7
-reports contract moved, skill moved, fingerprint moved, or a missing,
-incomplete, or unknown-key bootstrap. First-run and re-derive are the same
+reports `contract-moved` (a schema-version mismatch or an unloadable profile).
+Skill-version, fingerprint, and bootstrap-block drift are recorded by check 7,
+not enforced, so they no longer trigger this procedure — re-derive those by
+hand only if you want to. First-run and re-derive are the same
 procedure; first-run compares inspected reality with nothing, while re-derive
 compares it with the recorded profile. Never partially repair only a few keys,
 and never re-derive from a lane.

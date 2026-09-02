@@ -267,34 +267,45 @@ class BootstrapVerdicts(ClodexCheck):
         self.assertIn("re-derive", result.stdout)
         self.assertIn("contract-moved", result.stdout)
 
-    def test_exploit_missing_bootstrap_routes_to_rederive(self):
+    def test_missing_bootstrap_is_recorded_not_enforced(self):
+        # Johnny's 2026-09-02 ruling: currency drift records, never re-derives.
+        # A profile with no bootstrap block was the CRE repo's exact case.
         self.write_profile()
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("recorded", result.stdout)
         self.assertIn("bootstrap missing", result.stdout)
+        self.assertNotIn("re-derive", result.stdout)
 
-    def test_exploit_unknown_bootstrap_key_names_the_offender(self):
+    def test_unknown_bootstrap_key_is_recorded_and_named(self):
         bootstrap = bootstrap_for(self.repo)
         bootstrap["unexpected"] = "nope"
         self.write_profile(bootstrap)
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("recorded", result.stdout)
         self.assertIn("unknown key 'unexpected'", result.stdout)
+        self.assertNotIn("re-derive", result.stdout)
 
-    def test_exploit_skill_move_precedes_fingerprint_compare(self):
+    def test_skill_and_repo_drift_are_both_recorded(self):
+        """Currency drift no longer short-circuits: with a skill-version drift
+        AND a fingerprint drift present, each is recorded and the run passes."""
         self.write_profile(bootstrap_for(self.repo, clodex_version="0.3.0"))
         (self.repo / "Makefile").write_text("all:\n\t@true\n")
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("skill-moved", result.stdout)
-        self.assertNotIn("repo-moved", result.stdout)
+        self.assertIn("repo-moved", result.stdout)
+        self.assertIn("recorded", result.stdout)
+        self.assertNotIn("re-derive", result.stdout)
 
-    def test_exploit_fingerprint_move_rederives_but_unmarked_file_does_not(self):
+    def test_fingerprint_move_is_recorded_unmarked_file_is_not(self):
         self.write_profile(bootstrap_for(self.repo))
         (self.repo / "Makefile").write_text("all:\n\t@true\n")
         moved = self.run_check()
-        self.assertEqual(moved.returncode, 1, moved.stdout + moved.stderr)
+        self.assertEqual(moved.returncode, 0, moved.stdout + moved.stderr)
         self.assertIn("repo-moved", moved.stdout)
+        self.assertIn("recorded", moved.stdout)
 
         (self.repo / "Makefile").unlink()
         (self.repo / "new-source.py").write_text("print('new')\n")
@@ -302,32 +313,35 @@ class BootstrapVerdicts(ClodexCheck):
         self.assertEqual(stable.returncode, 0, stable.stdout + stable.stderr)
         self.assertNotIn("repo-moved", stable.stdout)
 
-    def test_exploit_incomplete_inspected_routes_to_rederive(self):
+    def test_incomplete_inspected_is_recorded(self):
         bootstrap = bootstrap_for(self.repo)
         bootstrap["inspected"] = bootstrap["inspected"][:-1]
         self.write_profile(bootstrap)
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("recorded", result.stdout)
         self.assertIn("bootstrap-incomplete", result.stdout)
         self.assertIn(INSPECTOR.MARKERS[-1], result.stdout)
 
-    def test_exploit_major_version_drift_routes_to_rederive(self):
-        """MAJOR drift with the same MINOR is incompatible, never 'current'
-        (b4-F002): recorded 1.x against current 0.x must re-derive."""
+    def test_major_version_drift_is_recorded(self):
+        """MAJOR drift with the same MINOR is still incompatible drift
+        (b4-F002); it is now recorded, not enforced."""
         current = VERSION.read_text().strip()
         major, rest = current.split(".", 1)
         drifted = f"{int(major) + 1}.{rest}"
         self.write_profile(bootstrap_for(self.repo, clodex_version=drifted))
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("skill-moved", result.stdout)
+        self.assertIn("recorded", result.stdout)
 
-    def test_exploit_unknown_inspected_key_names_the_offender(self):
+    def test_unknown_inspected_key_is_recorded_and_named(self):
         bootstrap = bootstrap_for(self.repo)
         bootstrap["inspected"][0]["surprise"] = True
         self.write_profile(bootstrap)
         result = self.run_check()
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("recorded", result.stdout)
         self.assertIn("unknown key 'surprise'", result.stdout)
 
 
