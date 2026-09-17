@@ -1,0 +1,51 @@
+<!doctype html>
+<!--
+  swatch.html: the hero-region page step 1 renders once per direction. Nothing here is edited or
+  saved. Open THIS file in the preflight's browser and set the direction at render time through
+  the browser (Playwright: page.addStyleTag / page.evaluate): the four custom properties from
+  the spec line, the ink (#ffffff or #000000, whichever contrasts more with the ground, computed
+  with round 0's arithmetic, never eyeballed), the eyebrow (direction name and its axis), the
+  rationale line, and the three hero lines from the brief (the surface's single job as the
+  heading, one paragraph of copy in its register, the one action). Capture the viewport at
+  1400x900 into the evidence directory. A web font must be loaded through the browser too
+  (addStyleTag with its @font-face) and confirmed via document.fonts before capture; a fallback
+  face is a wrong render and is never captured. Check the accent pairs (accent on ground, ground
+  on accent) for 4.5:1 before capture; a failing pair goes back to the spec line for another
+  accent. One hero region, no product code, no script, no links.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>swatch</title>
+<style>
+  :root {
+    --ground: #101418;                          /* spec line: ground hex */
+    --accent: #d8b46a;                          /* spec line: accent hex */
+    --display: "Fraunces", Georgia, serif;      /* spec line: display face */
+    --body: "Inter", system-ui, sans-serif;     /* spec line: body face */
+    --ink: #ffffff;                             /* render time: white or black, higher contrast vs ground */
+    --unit: 8px;
+  }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); }
+  body { font-family: var(--body); font-size: 17px; line-height: 1.5; min-height: 100vh; display: grid; place-items: center; }
+  .hero { width: min(72ch, 88vw); padding: calc(var(--unit) * 6) 0; }
+  .eyebrow { font-family: var(--body); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 calc(var(--unit) * 2); }
+  h1 { font-family: var(--display); font-weight: 500; font-size: clamp(40px, 6vw, 72px); line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 calc(var(--unit) * 3); }
+  .copy { max-width: 58ch; margin: 0 0 calc(var(--unit) * 4); }
+  .control { display: inline-block; font: inherit; font-weight: 600; color: var(--ground); background: var(--accent); border: 0; border-radius: 6px; padding: calc(var(--unit) * 1.5) calc(var(--unit) * 3); cursor: pointer; }
+  .control:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .rationale { font-size: 13px; margin: calc(var(--unit) * 5) 0 0; max-width: 58ch; }
+  ::selection { background: var(--accent); color: var(--ground); }
+</style>
+</head>
+<body>
+  <main class="hero">
+    <p class="eyebrow">DIRECTION NAME, the axis it varies on</p>
+    <h1>The surface's single job, said as the hero would say it</h1>
+    <p class="copy">One paragraph of real copy in the register the brief pinned (operate, read, persuade, or experience), long enough to show the body face at reading size and the rhythm the ground and accent set.</p>
+    <button class="control" type="button">The one action</button>
+    <p class="rationale">The spec line's one-line rationale, so the reader of the capture knows why this direction exists.</p>
+  </main>
+</body>
+</html>

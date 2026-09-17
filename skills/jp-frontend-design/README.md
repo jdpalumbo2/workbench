@@ -1,42 +1,43 @@
 # jp-frontend-design
 
-## What it is
+A process skill: the order of work that gets a coding agent from a one-line ask to a
+distinctive, verified UI. It governs sequence and gates; craft-level guidance (Anthropic's
+`frontend-design`, a dataviz skill) loads beside it.
 
-A **process skill**, not a craft skill. It doesn't teach taste — it enforces the
-order in which taste gets applied: constraints before code, tokens before
-components, one hero screen before ten scaffolds, screenshots before "done."
-It's designed to run alongside a craft-level design skill (like Anthropic's
-`frontend-design`) and a dataviz skill; this one governs the sequence, they
-govern the judgment.
+## What v2 changed (2026-09-17)
 
-## What it's good for
+v1 was the consensus sequence (brief, tokens, reference analysis, hero, critique loop, scale
+out) with the mechanisms left implicit. v2 applies the Atelier research memo
+(`research/2026-09-02-ai-frontend-design-research.md`, ~350 graded sources across seven lanes)
+and makes each step carry its mechanism:
 
-- **Tokens-first styling.** Every component consumes a `tokens.css` written
-  before any component exists — so restyling the whole app is a hand-edit to
-  30 lines of variables, not a hunt through components.
-- **Hero-first discipline.** One screen polished to done before anything else
-  is scaffolded. Ten screens at once means ten mediocre screens.
-- **The screenshot critique loop.** Models critique rendered output far better
-  than they design blind. The skill makes the loop mandatory — minimum two
-  rounds, desktop and mobile widths, with an accessibility quality floor — which
-  is where the actual quality happens.
+- **Step 0 is new**: read the existing system first; preflight the browser automation, the
+  evidence directory, and an independent critic context; a scope-guarded path for one-value
+  tweaks.
+- **Directions are rendered, not described** (`references/swatch.html`), span named axes and
+  material families, and include a labelled conventional exit. Enumerate-then-pick is the
+  diversity mechanism with controlled evidence behind it; bans alone just relocate the default.
+- **Tokens store taste, they do not originate it**: the 15-line prose plan
+  (`references/design-plan.md`) rides beside tokens.css, and a rogue-literal check enforces
+  what models will not self-enforce.
+- **The critique loop is bounded and externalized**: mechanical round 0 gates first
+  (`references/eval-rubric.md` layer A); the critic runs in a fresh context with a capped issue
+  count (`references/critique-prompt.md`); pairwise no-regression judging is blinded with both
+  orderings; keep the best round, not the last; two rounds default, three max.
+- **Register decides treatment**: operate surfaces escape generic through precision and
+  meaning-encoding color, not decoration.
+- **Evidence before done**: captures, gate results, and verdicts attach to the deliverable.
 
-Reach for it when any user-facing UI is about to be built, or when an existing
-one reads as generic, templated, or AI-generated.
+## Honest caveats
 
-## Who it's for
+- The skill requires a browser automation that can render, capture, and script the page, and an
+  independent context for critique. Without them it stops rather than degrades.
+- There is no controlled eval of this skill itself. The memo grades which of its rules rest on
+  controlled results and which are practice (`references/eval-rubric.md`, last section).
+- The full verify loop is expensive in judge calls; the skill requires saying the budget before
+  starting, and the low-stakes path exists so small changes do not pay it.
 
-Builders who make tools for themselves — people customizing their own agents
-who want a repeatable design process, not a component library or a theme.
-It was made for me, for people like me, by people like me.
+## Files
 
-Honest caveats: it's opinionated (that's the point); the critique loop assumes
-a screenshot capability (browser MCP, Playwright, or Chrome DevTools); and
-project-specific identity belongs in the project's own docs — this skill only
-supplies the process.
-
-## Install
-
-```bash
-ln -s "$(pwd)/skills/jp-frontend-design" ~/.claude/skills/jp-frontend-design
-```
+`SKILL.md` (the sequence) · `references/` (plan template, critic prompt, rubric, slop list,
+swatch page) · `research/` (the memo this version implements; provenance in its README).
